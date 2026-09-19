@@ -26,7 +26,7 @@ function titleFromPath(pathname: string): string {
   const exact = TITLES[pathname];
   if (exact) return exact;
   if (pathname.startsWith("/auth")) return "Account";
-  return "Mark-Imti";
+  return "mark jenny";
 }
 
 export function Header() {

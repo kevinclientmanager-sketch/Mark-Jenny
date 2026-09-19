@@ -153,7 +153,7 @@ export default function AIPage() {
                             <Button
                               size="sm"
                               onClick={() => handleSave(prov.id)}
-                              disabled={!keys[prov.id]?.trim() && prov.id !== "OLLAMA" || saving === prov.id}
+                              disabled={(!keys[prov.id]?.trim() && prov.id !== "OLLAMA") || saving === prov.id}
                             >
                               {saving === prov.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Key className="mr-1 h-3 w-3" />}
                               {configured ? "Update Key" : "Save Key"}

@@ -330,7 +330,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
               className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold tracking-tight text-zinc-900 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
               title="Go to Dashboard"
             >
-              Mark-Imti
+              mark jenny
             </button>
             <button
               onClick={() => setSearchOpen(true)}

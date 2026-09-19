@@ -31,14 +31,22 @@ export function ScheduledTab() {
   const fetchRuns = useCallback(async () => {
     setLoadingRuns(true);
     try {
-      // For now, fetch from tasks API with status filter
-      // In future, this could be a dedicated runs endpoint
+      // Fetch run history from the schedules API
+      const allRuns: any[] = [];
+      for (const schedule of schedules) {
+        try {
+          const runs = await schedulesApi.listRuns(schedule.id, 1, 10);
+          allRuns.push(...runs.map(r => ({ ...r, schedule_title: schedule.title })));
+        } catch {}
+      }
+      allRuns.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+      setRuns(allRuns);
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingRuns(false);
     }
-  }, []);
+  }, [schedules]);
 
   const fetchSchedules = useCallback(async () => {
     setLoadingSchedules(true);

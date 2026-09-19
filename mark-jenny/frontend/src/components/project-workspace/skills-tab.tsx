@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { projectsApi, ProjectSkill } from "@/lib/api/projects";
+import { skillsApi } from "@/lib/api/skills";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose,
 } from "@/components/ui/sheet";
@@ -33,10 +34,16 @@ export function SkillsTab({ projectId }: { projectId: number }) {
       const projectSkillsResponse = await projectsApi.listSkills(projectId);
       setProjectSkills(projectSkillsResponse);
       
-      // Get available skills (for adding new ones)
-      const availableSkillsResponse = await projectsApi.list({ page_size: 100 });
+      // Get available skills from the skills registry
+      const availableSkillsResponse = await skillsApi.list({ page_size: 100 });
       const projectSkillIds = new Set(projectSkillsResponse.map(ps => ps.id));
-      const available = (availableSkillsResponse.projects as unknown as ProjectSkill[]).filter(s => !projectSkillIds.has(s.id));
+      const available = availableSkillsResponse.skills
+        .filter(s => !projectSkillIds.has(s.id))
+        .map(s => ({
+          id: s.id, name: s.name, display_name: s.display_name, description: s.description,
+          version: s.version, source: s.source, status: s.status, enabled: false,
+          config: null, last_updated: s.updated_at,
+        }));
       setAvailableSkills(available);
     } catch (err) {
       console.error(err);
@@ -52,7 +59,7 @@ export function SkillsTab({ projectId }: { projectId: number }) {
 const handleAddSkill = async (skillId: number) => {
     setAdding(true);
     try {
-      // await projectsApi.addSkill(projectId, skillId);
+      await projectsApi.addSkill(projectId, skillId);
       fetchData();
       setShowAddModal(false);
       toast.add({ title: "Skill added", type: "success" });
@@ -68,7 +75,7 @@ const handleAddSkill = async (skillId: number) => {
     if (!removeTarget) return;
     setRemoving(true);
     try {
-      // await projectsApi.removeSkill(projectId, removeTarget.id);
+      await projectsApi.removeSkill(projectId, removeTarget.id);
       fetchData();
       toast.add({ title: "Skill removed from project", description: removeTarget.name, type: "success" });
     } catch (err) {
@@ -82,7 +89,7 @@ const handleAddSkill = async (skillId: number) => {
 
   const handleToggleSkill = async (skill: ProjectSkill, enabled: boolean) => {
     try {
-      // await projectsApi.updateSkill(projectId, skill.id, enabled);
+      await projectsApi.updateSkill(projectId, skill.id, enabled);
       setProjectSkills(prev => prev.map(s => s.id === skill.id ? { ...s, enabled } : s));
     } catch (err) {
       console.error(err);

@@ -168,6 +168,17 @@ export function LibraryTab() {
     }
   };
 
+  const handlePreview = async (file: ApiFile) => {
+    try {
+      const blob = await filesApi.downloadFile(file.id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      toast.add({ title: "Preview failed", type: "error" });
+      console.error(err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -252,7 +263,7 @@ export function LibraryTab() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleDownload(file)}><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePreview(file)}><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDownload(file)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => setDeleteTarget(file)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
@@ -283,7 +294,7 @@ export function LibraryTab() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleDownload(file)}><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handlePreview(file)}><Eye className="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDownload(file)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600" onClick={() => setDeleteTarget(file)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>

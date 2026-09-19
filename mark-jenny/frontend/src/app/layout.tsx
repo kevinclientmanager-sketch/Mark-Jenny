@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MARK JENNY",
+  title: "mark jenny",
   description: "Autonomous AI Operating Platform",
 };
 

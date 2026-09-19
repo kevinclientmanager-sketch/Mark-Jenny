@@ -44,7 +44,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login("demo@mark-imti.com", "demo123");
+      await login("demo@markjenny.com", "demo123");
       const dest = localStorage.getItem("onboarded") ? "/" : "/onboarding";
       router.push(dest);
       router.refresh();
@@ -63,7 +63,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
             <Bot className="h-7 w-7 text-white" />
           </div>
-          <CardTitle className="text-2xl">Mark-Imti</CardTitle>
+          <CardTitle className="text-2xl">mark jenny</CardTitle>
           <CardDescription>
             {isLogin ? "Sign in to your account" : "Create a new account"}
           </CardDescription>

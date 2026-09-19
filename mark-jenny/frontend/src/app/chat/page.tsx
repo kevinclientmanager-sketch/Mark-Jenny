@@ -126,7 +126,7 @@ export default function ChatPage() {
   const [routeNote, setRouteNote] = useState<{ tool: string; icon: React.ReactNode; project?: { id: number; name: string }; think?: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Chat | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [browseSessions, setBrowseSessions] = useState<{ id: string; url?: string; status?: string }[]>([]);
+  const [browseSessions, setBrowseSessions] = useState<{ id: string; url?: string; status?: string; name?: string }[]>([]);
   const [openTabs, setOpenTabs] = useState<{ id: number; title: string }[]>([]);
 
   const isPinned = (id: number) => pinned.includes(id);
@@ -381,6 +381,13 @@ export default function ChatPage() {
             onSelectProject: (id) => setProjectId(id),
             onNewProject: handleNewProject,
             browseSessions,
+            onRenameProject: (id, name) => {
+              setProjects((prev) => prev.map((p) => p.id === id ? { ...p, name } : p));
+            },
+            onDeleteProject: (id) => {
+              setProjects((prev) => prev.filter((p) => p.id !== id));
+              if (projectId === id) setProjectId(undefined);
+            },
           }}
         />
         <div className={`flex-1 flex flex-col min-w-0 transition-all ${sidebarOpen ? "ml-64" : "ml-16"}`}>
@@ -391,6 +398,7 @@ export default function ChatPage() {
             onTabNew={handleNewTab}
             rightPanelOpen={workOpen}
             onToggleRightPanel={() => setWorkOpen((v) => !v)}
+            activeProjectName={projects.find((p) => p.id === projectId)?.name}
           />
           <div className="flex-1 flex min-h-0">
             {/* Main column */}

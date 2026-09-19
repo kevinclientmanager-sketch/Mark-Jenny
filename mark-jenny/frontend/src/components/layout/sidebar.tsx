@@ -17,10 +17,14 @@ import {
   PinOff,
   Trash2,
   Loader2,
+  MoreHorizontal,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactElement } from "react";
+import { useState, type ReactElement, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -34,13 +38,17 @@ import { setSearchOpen } from "@/lib/nav/search-store";
 import { setSettingsOpen } from "@/lib/nav/settings-store";
 import { CommandSearch } from "@/components/layout/command-search";
 import { SettingsDialog } from "@/components/layout/SettingsDialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { Chat } from "@/lib/api/chat";
 import type { Project } from "@/lib/api/projects";
+import { projectsApi } from "@/lib/api/projects";
+import { toast } from "@/components/ui/toast";
 
 const BUCKETS = ["Today", "Yesterday", "Previous 7 days", "Previous 30 days", "Older"] as const;
 
 const AGENTS = [
-  { id: "chat", label: "Jenny", icon: Bot },
+  { id: "chat", label: "Imti", icon: Bot },
   { id: "work", label: "Mark", icon: Code2 },
   { id: "browse", label: "Browser", icon: Globe },
 ] as const;
@@ -50,6 +58,42 @@ const PROJ_PIN_KEY = "mark.pinnedProjects";
 
 function loadPinned(key: string): number[] {
   try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+}
+
+function ProjectContextMenu({ onRename, onDelete, onTogglePin, isPinned }: {
+  onRename: () => void;
+  onDelete: () => void;
+  onTogglePin: () => void;
+  isPinned: boolean;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Project options"
+          />
+        }
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="right" sideOffset={4} className="w-44">
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
+          <Pencil className="h-3.5 w-3.5" /> Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTogglePin(); }}>
+          {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          {isPinned ? "Unpin" : "Pin"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-red-600 focus:text-red-600">
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function chatBucket(ts: string): string {
@@ -79,7 +123,9 @@ export interface SidebarChatData {
   projectId?: number;
   onSelectProject: (id: number | undefined) => void;
   onNewProject: () => void;
-  browseSessions: { id: string; url?: string; status?: string }[];
+  browseSessions: { id: string; url?: string; status?: string; name?: string }[];
+  onRenameProject?: (id: number, name: string) => void;
+  onDeleteProject?: (id: number) => void;
 }
 
 export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onToggle: () => void; chatData?: SidebarChatData }) {
@@ -95,6 +141,10 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
     }
   });
   const [pinnedProjects, setPinnedProjects] = useState<number[]>(() => loadPinned(PROJ_PIN_KEY));
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameText, setRenameText] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const renameRef = useRef<HTMLInputElement>(null);
 
   const displayMode = chatData ? chatData.mode : localMode;
 
@@ -123,6 +173,30 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
       try { localStorage.setItem(PROJ_PIN_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
+  };
+
+  const handleRenameStart = (p: Project) => {
+    setRenamingId(p.id);
+    setRenameText(p.name || "");
+  };
+
+  const handleRenameSave = async (id: number) => {
+    if (!renameText.trim()) { setRenamingId(null); return; }
+    try {
+      await projectsApi.update(id, { name: renameText.trim() });
+      chatData?.onRenameProject?.(id, renameText.trim());
+      toast.add({ title: "Project renamed", type: "success" });
+    } catch { toast.add({ title: "Rename failed", type: "error" }); }
+    setRenamingId(null);
+  };
+
+  const handleDeleteConfirm = async (id: number) => {
+    try {
+      await projectsApi.delete(id);
+      chatData?.onDeleteProject?.(id);
+      toast.add({ title: "Project deleted", type: "success" });
+    } catch { toast.add({ title: "Delete failed", type: "error" }); }
+    setDeleteConfirmId(null);
   };
 
   const chatRow = (c: Chat) => (
@@ -162,27 +236,52 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
   const projectRow = (p: Project) => (
     <div
       key={p.id}
-      onClick={() => router.push(`/projects/${p.id}`)}
+      onClick={() => {
+        if (renamingId !== p.id) {
+          chatData?.onSelectProject(p.id);
+          router.push(`/projects/${p.id}`);
+        }
+      }}
       className={cn(
         "group flex items-center justify-between rounded-lg p-2 cursor-pointer",
-        chatData!.projectId === p.id
+        chatData?.projectId === p.id
           ? "bg-zinc-900/5 dark:bg-white/10"
           : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{p.name || `Project #${p.id}`}</p>
-        <p className="truncate text-xs text-zinc-500">
-          {p.task_count && p.task_count > 0 ? `${p.task_count} tasks` : p.status || "No tasks yet"}
-        </p>
+        {renamingId === p.id ? (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Input
+              ref={renameRef}
+              value={renameText}
+              onChange={(e) => setRenameText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameSave(p.id);
+                if (e.key === "Escape") setRenamingId(null);
+              }}
+              className="h-6 text-xs px-1.5"
+            />
+            <button onClick={() => handleRenameSave(p.id)} className="rounded p-0.5 text-green-600 hover:bg-green-100"><Check className="h-3 w-3" /></button>
+            <button onClick={() => setRenamingId(null)} className="rounded p-0.5 text-zinc-400 hover:bg-zinc-100"><X className="h-3 w-3" /></button>
+          </div>
+        ) : (
+          <>
+            <p className="truncate text-sm font-medium">{p.name || `Project #${p.id}`}</p>
+            <p className="truncate text-xs text-zinc-500">
+              {p.task_count && p.task_count > 0 ? `${p.task_count} tasks` : p.status || "No tasks yet"}
+            </p>
+          </>
+        )}
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleProjectPin(p.id); }}
-        title={pinnedProjects.includes(p.id) ? "Unpin" : "Pin"}
-        className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-      >
-        {pinnedProjects.includes(p.id) ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-      </button>
+      {renamingId !== p.id && (
+        <ProjectContextMenu
+          onRename={() => handleRenameStart(p)}
+          onDelete={() => setDeleteConfirmId(p.id)}
+          onTogglePin={() => toggleProjectPin(p.id)}
+          isPinned={pinnedProjects.includes(p.id)}
+        />
+      )}
     </div>
   );
 
@@ -231,7 +330,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
               className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold tracking-tight text-zinc-900 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
               title="Go to Dashboard"
             >
-              mark jenny
+              Mark-Imti
             </button>
             <button
               onClick={() => setSearchOpen(true)}
@@ -374,17 +473,17 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
               </div>
             ) : (
               <div>
-                <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Browser</p>
+                <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Browser Sessions</p>
                 <div className="space-y-0.5">
                   {chatData.browseSessions.map((s) => (
                     <button
                       key={s.id}
                       onClick={() => router.push("/browser")}
-                      className="flex w-full items-center gap-2 rounded-lg p-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      className="group flex w-full items-center gap-2 rounded-lg p-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       <Globe className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{s.url || `Session ${s.id.slice(0, 8)}`}</p>
+                        <p className="truncate text-sm font-medium">{s.name || s.url || `Session ${s.id.slice(0, 8)}`}</p>
                         <p className="truncate text-xs text-zinc-500">{s.status || "Active"}</p>
                       </div>
                     </button>
@@ -480,6 +579,20 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
 
       <CommandSearch />
       <SettingsDialog />
+
+      {/* Delete project confirmation */}
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-5 max-w-sm w-full mx-4 space-y-3">
+            <h3 className="text-base font-semibold">Delete project?</h3>
+            <p className="text-sm text-zinc-500">This will permanently delete the project and its data. This cannot be undone.</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirm(deleteConfirmId)}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

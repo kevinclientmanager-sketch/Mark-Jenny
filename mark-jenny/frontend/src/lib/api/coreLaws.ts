@@ -6,11 +6,11 @@ export const coreLawsApi = {
   setup: (password: string, laws: Array<{ plain_text: string; code?: string; category?: string }>) =>
     api.post("/core-laws/setup", { password, laws }),
   update: (lawId: string, plainText: string, code: string, password: string) =>
-    api.post("/core-laws/update", { law_id: lawId, plain_text: plainText, code }, { params: { password } }),
+    api.post(`/core-laws/update?password=${encodeURIComponent(password)}`, { law_id: lawId, plain_text: plainText, code }),
   add: (plainText: string, code: string, category: string, password: string) =>
-    api.post("/core-laws/add", { plain_text: plainText, code, category }, { params: { password } }),
+    api.post(`/core-laws/add?password=${encodeURIComponent(password)}`, { plain_text: plainText, code, category }),
   delete: (lawId: string, password: string) =>
-    api.delete(`/core-laws/${lawId}`, { params: { password } }),
+    api.delete(`/core-laws/${lawId}?password=${encodeURIComponent(password)}`),
   enforce: () => api.get("/core-laws/enforce"),
-  verify: () => api.post("/core-laws/verify"),
+  verify: () => api.post("/core-laws/verify", {}),
 };

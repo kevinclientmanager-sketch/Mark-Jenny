@@ -20,6 +20,7 @@ export function ChatTopBar({
   onTabNew,
   rightPanelOpen,
   onToggleRightPanel,
+  activeProjectName,
 }: {
   tabs?: Tab[];
   onTabSelect?: (id: number) => void;
@@ -27,6 +28,7 @@ export function ChatTopBar({
   onTabNew?: () => void;
   rightPanelOpen?: boolean;
   onToggleRightPanel?: () => void;
+  activeProjectName?: string;
 }) {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
@@ -71,6 +73,13 @@ export function ChatTopBar({
         )}
       </div>
 
+      {/* Center: active project/chat name */}
+      {activeProjectName && (
+        <div className="hidden md:flex items-center gap-1.5 px-3 shrink-0">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">{activeProjectName}</span>
+        </div>
+      )}
+
       {/* Right-side icons */}
       <div className="flex items-center gap-0.5 shrink-0">
         <button
@@ -93,14 +102,7 @@ export function ChatTopBar({
         >
           <Settings className="h-4 w-4" />
         </button>
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        </button>
+        {/* Right panel toggle — first position (swapped with theme) */}
         <button
           onClick={onToggleRightPanel}
           className={cn(
@@ -112,6 +114,15 @@ export function ChatTopBar({
           title={rightPanelOpen ? "Close right panel" : "Open right panel"}
         >
           {rightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+        </button>
+        {/* Theme toggle — last position (swapped with right panel) */}
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         </button>
       </div>
     </header>

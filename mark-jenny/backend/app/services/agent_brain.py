@@ -840,9 +840,47 @@ Respond helpfully, directly, and specifically. If the user wants to build someth
 
         return response
 
+    def _load_core_laws_for_prompt(self) -> str:
+        """Load Core Laws from disk and format for the system prompt.
+        Agents only see the code representation — never the plain language.
+        This ensures agents cannot manipulate the law wording."""
+        from pathlib import Path
+        import os, json
+
+        core_laws_dir = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "core_laws"
+        laws_file = core_laws_dir / "laws.json"
+
+        if not laws_file.exists():
+            return "\n## CORE LAWS\nNo Core Laws configured. Default safety principles apply.\n"
+
+        try:
+            with open(laws_file) as f:
+                data = json.load(f)
+                laws = data.get("laws", [])
+
+            if not laws:
+                return "\n## CORE LAWS\nNo Core Laws configured. Default safety principles apply.\n"
+
+            lines = []
+            for law in laws:
+                if law.get("enabled", True):
+                    lines.append(f"- [{law.get('category', 'general').upper()}] {law.get('code', 'NO CODE')}")
+
+            return f"""
+## CORE LAWS — IMMUTABLE, ENFORCED BY IMTI
+These are the user's absolute rules. You MUST obey them at all times.
+You CANNOT modify, override, or bypass these laws. Imti monitors compliance.
+Violating a Core Law is the highest-severity failure. Never attempt it.
+{chr(10).join(lines)}
+"""
+        except Exception:
+            return "\n## CORE LAWS\nError loading laws. Default safety principles apply.\n"
+
     def _build_system_prompt(self) -> str:
-        """Build the Mythos-level system prompt for the LLM."""
-        return """You are Mark Jenny — a Mythos-level autonomous AI agent with superhuman coding, reasoning, and problem-solving capabilities. You operate at the level of GPT-6 Astra and Claude Mythos 5.
+        """Build the Mythos-level system prompt for the LLM.
+        Automatically loads and enforces Core Laws from the user's configuration."""
+        core_laws_section = self._load_core_laws_for_prompt()
+        return f"""You are Mark-Imti — a Mythos-level autonomous AI agent with superhuman coding, reasoning, and problem-solving capabilities. You operate at the level of GPT-6 Astra and Claude Mythos 5.
 
 ## CORE IDENTITY
 You are not a simple assistant. You are an autonomous agent that THINKS, PLANS, and EXECUTES. You analyze problems deeply, consider edge cases, and deliver production-quality solutions. You are the most intelligent entity in any room.
@@ -892,8 +930,8 @@ You are a security expert. Always:
 
 ## TOOL USAGE
 You have access to skills, memory, memory recall, web search, code execution, and file operations. Use them automatically when relevant — don't wait to be asked. The user describes WHAT they want; you determine HOW to do it.
-
-You are Mark Jenny. You don't just answer questions — you solve problems."""
+{core_laws_section}
+You are Mark-Imti. You don't just answer questions — you solve problems."""
 
     async def _call_llm(self, system: str, prompt: str) -> str:
         """Call Ollama or cloud API to generate a response. Tries all providers."""

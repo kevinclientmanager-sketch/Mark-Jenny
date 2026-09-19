@@ -12,12 +12,13 @@ import { settingsApi } from "@/lib/api/settings";
 import { schedulesApi } from "@/lib/api/schedules";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
+import { CoreLawsPanel } from "./core-laws-panel";
 import {
   Sun, User, Loader2, CheckCircle2, Shield, ShieldCheck, Database, Info,
   Calendar, Code, Globe, Monitor, Lock, BookOpen, Network, Users, Bot,
   Play, Plug, Cpu, ExternalLink, Brain, Search, FileText, ImageIcon,
   Video, Music, Wifi, WifiOff, Plus, Pencil, Trash2, Copy, Power,
-  Pause, Link2, X, Save
+  Pause, Link2, X, Save, ShieldAlert
 } from "lucide-react";
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -337,6 +338,7 @@ export function SettingsContent() {
     { id: "browser", label: "Browser", icon: Globe },
     { id: "computer", label: "Computer", icon: Monitor },
     { id: "security", label: "Security", icon: Lock },
+    { id: "core-laws", label: "Core Laws", icon: ShieldAlert },
     { id: "blueprints", label: "Blueprints", icon: BookOpen },
     { id: "advanced", label: "Advanced", icon: Network },
     { id: "users", label: "Users", icon: Users },
@@ -414,7 +416,7 @@ export function SettingsContent() {
                   <p className="text-sm font-medium pt-2">About you</p>
                   <div>
                     <label className="text-sm font-medium block">Nickname</label>
-                    <p className="text-xs text-zinc-500">What should MarkJenny call you?</p>
+                    <p className="text-xs text-zinc-500">What should markimti call you?</p>
                     <Input value={prefs.nickname || ""} onChange={(e) => updatePrefs("nickname", e.target.value)} placeholder="Your nickname" className="mt-1.5" />
                   </div>
                   <div>
@@ -561,8 +563,8 @@ export function SettingsContent() {
             <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> Browser Automation</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-zinc-500">Control a headless browser for web scraping, form filling, and automation.</p>
-                <SettingRow title="Web search" desc="Let MarkJenny automatically search the web for current answers." control={<Toggle checked={catFlag("browser", "web_search", prefs.webSearch !== false)} onChange={(v) => { setCat("browser", "web_search", v); updatePrefs("webSearch", v); }} />} />
-                <SettingRow title="Dark web browsing" desc="Let MarkJenny explore deep and dark web sources through Tor for advanced research." control={<Toggle checked={catFlag("browser", "dark_web", prefs.darkWeb !== false)} onChange={(v) => { setCat("browser", "dark_web", v); updatePrefs("darkWeb", v); }} />} />
+                <SettingRow title="Web search" desc="Let markimti automatically search the web for current answers." control={<Toggle checked={catFlag("browser", "web_search", prefs.webSearch !== false)} onChange={(v) => { setCat("browser", "web_search", v); updatePrefs("webSearch", v); }} />} />
+                <SettingRow title="Dark web browsing" desc="Let markimti explore deep and dark web sources through Tor for advanced research." control={<Toggle checked={catFlag("browser", "dark_web", prefs.darkWeb !== false)} onChange={(v) => { setCat("browser", "dark_web", v); updatePrefs("darkWeb", v); }} />} />
                 <SettingRow title="Browser enabled" desc="Enable the built-in browser for agents and scheduled tasks." control={<Toggle checked={catFlag("browser", "enabled")} onChange={(v) => setCat("browser", "enabled", v)} />} />
                 <SettingRow title="Headless mode" desc="Run the browser in the background without a visible window." control={<Toggle checked={catFlag("browser", "headless")} onChange={(v) => setCat("browser", "headless", v)} />} />
                 <SettingRow title="Incognito / private" desc="Do not persist cookies, history, or logins between sessions." control={<Toggle checked={catFlag("browser", "incognito", false)} onChange={(v) => setCat("browser", "incognito", v)} />} />
@@ -612,6 +614,10 @@ export function SettingsContent() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="core-laws">
+            <CoreLawsPanel />
+          </TabsContent>
+
           <TabsContent value="blueprints">
             <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" /> Blueprints</CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -627,7 +633,7 @@ export function SettingsContent() {
           <TabsContent value="advanced">
             <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><Network className="h-4 w-4" /> Advanced Settings</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <SettingRow title="Canvas" desc="Collaborate with MarkJenny on shared text and code documents." control={<Toggle checked={prefs.canvas !== false} onChange={(v) => updatePrefs("canvas", v)} />} />
+                <SettingRow title="Canvas" desc="Collaborate with markimti on shared text and code documents." control={<Toggle checked={prefs.canvas !== false} onChange={(v) => updatePrefs("canvas", v)} />} />
                 <SettingRow title="Multi-agent orchestration" desc="Supervisor agent coordinates specialist agents for complex tasks." control={<Toggle checked={catFlag("agents", "multi_agent")} onChange={(v) => setCat("agents", "multi_agent", v)} />} />
                 <SettingRow title="Memory engine" desc="Agent remembers context across conversations and tasks." control={<Toggle checked={catFlag("advanced", "memory_engine")} onChange={(v) => setCat("advanced", "memory_engine", v)} />} />
                 <SettingRow title="Task recovery" desc="Automatic retry and rollback on failed tasks." control={<Toggle checked={catFlag("advanced", "task_recovery")} onChange={(v) => setCat("advanced", "task_recovery", v)} />} />
@@ -688,7 +694,7 @@ export function SettingsContent() {
                   <Badge variant="outline" className="bg-green-50 text-green-700"><Shield className="mr-1 h-3 w-3" />Private</Badge>
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div><p className="text-sm font-medium">Database</p><p className="text-xs text-zinc-500">SQLite — mark_jenny.db in backend folder</p></div>
+                  <div><p className="text-sm font-medium">Database</p><p className="text-xs text-zinc-500">SQLite — mark_imti.db in backend folder</p></div>
                 </div>
                 <div className="border-t pt-3">
                   <p className="text-sm font-medium mb-2">What's stored in your Library</p>
@@ -783,7 +789,7 @@ export function SettingsContent() {
             </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-zinc-500">Connect Mark to external services, apps, and your computer.</p>
-                <SettingRow title="Connector search" desc="Let MarkJenny automatically search connected sources for answers." control={<Toggle checked={prefs.connectorSearch !== false} onChange={(v) => updatePrefs("connectorSearch", v)} />} />
+                <SettingRow title="Connector search" desc="Let markimti automatically search connected sources for answers." control={<Toggle checked={prefs.connectorSearch !== false} onChange={(v) => updatePrefs("connectorSearch", v)} />} />
                 <div className="border-t pt-3">
                   <p className="text-sm font-medium mb-2">Your connected apps & sources</p>
                   {userConnectors.length === 0 ? (
@@ -852,7 +858,7 @@ export function SettingsContent() {
             </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-zinc-500">Mark's knowledge base — instructions, notes, documents, and RAG sources.</p>
-                <SettingRow title="Library search" desc="Allow MarkJenny to automatically search Library files for answers." control={<Toggle checked={prefs.librarySearch !== false} onChange={(v) => updatePrefs("librarySearch", v)} />} />
+                <SettingRow title="Library search" desc="Allow markimti to automatically search Library files for answers." control={<Toggle checked={prefs.librarySearch !== false} onChange={(v) => updatePrefs("librarySearch", v)} />} />
                 <div className="border-t pt-3">
                   <p className="text-sm font-medium mb-2">All knowledge entries ({knowledge.length})</p>
                   {knowledge.length === 0 ? (
@@ -1094,11 +1100,11 @@ export function SettingsContent() {
             <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><Brain className="h-4 w-4" /> Memory</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-zinc-500">Mark remembers context across conversations and tasks — facts, preferences, and past work.</p>
-                <SettingRow title="Enable memory" desc="Let MarkJenny personalize your experience based on your chats, files, and connected apps." control={<Toggle checked={prefs.enableMemory !== false} onChange={(v) => updatePrefs("enableMemory", v)} />} />
-                <SettingRow title="Manage" desc="MarkJenny may use Memory to personalize queries to search providers, such as Bing, especially on the web." control={<Toggle checked={prefs.memorySearch !== false} onChange={(v) => updatePrefs("memorySearch", v)} />} />
+                <SettingRow title="Enable memory" desc="Let markimti personalize your experience based on your chats, files, and connected apps." control={<Toggle checked={prefs.enableMemory !== false} onChange={(v) => updatePrefs("enableMemory", v)} />} />
+                <SettingRow title="Manage" desc="markimti may use Memory to personalize queries to search providers, such as Bing, especially on the web." control={<Toggle checked={prefs.memorySearch !== false} onChange={(v) => updatePrefs("memorySearch", v)} />} />
                 <div className="p-3 border rounded-lg">
                   <p className="text-sm font-medium">Memory summary</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">View an overview of what MarkJenny has learned about you. Use custom instructions for information you'd like it to always keep in mind. You can still manage your old saved memories.</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">View an overview of what markimti has learned about you. Use custom instructions for information you'd like it to always keep in mind. You can still manage your old saved memories.</p>
                   <Button size="sm" className="mt-2" onClick={() => window.location.href = "/memory"}><ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Manage memories</Button>
                 </div>
                 <SettingRow title="Memory engine" desc="The vectorized memory engine that powers recall across chats and tasks." control={<Toggle checked={catFlag("advanced", "memory_engine")} onChange={(v) => setCat("advanced", "memory_engine", v)} />} />
@@ -1137,7 +1143,7 @@ export function SettingsContent() {
           </TabsContent>
 
           <TabsContent value="about">
-            <Card><CardHeader><CardTitle className="text-base">MARK JENNY</CardTitle></CardHeader>
+            <Card><CardHeader><CardTitle className="text-base">Mark-Imti</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p><span className="font-medium">Version:</span> 0.1.0</p>
                 <p><span className="font-medium">Type:</span> Autonomous AI Operating Platform</p>

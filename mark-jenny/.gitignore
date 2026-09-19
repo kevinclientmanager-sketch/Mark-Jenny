@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+backend/venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Environment / secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Database — local SQLite files
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+uploads/
+generated/
+
+# Logs
+*.log
+npm-debug.log*
+uvicorn.log
+logs/
+
+# Test / coverage
+coverage/
+htmlcov/
+.jest-cache/
+
+# Electron / Tauri
+frontend/src-tauri/target/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

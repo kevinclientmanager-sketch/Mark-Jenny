@@ -1,0 +1,52 @@
+{
+  "build": {
+    "beforeBuildCommand": "npm run build -- --webpack",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:3000",
+    "distDir": "../.next"
+  },
+  "package": {
+    "productName": "MARK JENNY",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "category": "Productivity",
+      "copyright": "© MARK JENNY",
+      "deb": { "depends": [] },
+      "externalBin": [],
+      "icon": ["icons/icon.png"],
+      "identifier": "com.markjenny.app",
+      "longDescription": "Autonomous AI Operating Platform - Windows 10/11",
+      "macOS": { "entitlements": null, "exceptionDomain": "", "frameworks": [], "providerShortName": null, "signingIdentity": null },
+      "resources": [],
+      "shortDescription": "MARK JENNY",
+      "targets": ["msi", "nsis"],
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "nsis": {
+          "displayLanguageSelector": false,
+          "installMode": "both",
+          "installerIcon": "icons/icon.png"
+        },
+        "webviewInstallMode": { "type": "embedBootstrapper" },
+        "wix": { "language": { "default": "en-US", "languages": ["en-US"] } }
+      }
+    },
+    "security": { "csp": null },
+    "updater": { "active": false },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 900,
+        "resizable": true,
+        "title": "MARK JENNY",
+        "width": 1400,
+        "systemTray": { "iconPath": "icons/icon.png", "iconAsTemplate": true }
+      }
+    ],
+    "systemTray": { "iconPath": "icons/icon.png" }
+  }
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Save, RotateCcw, Clock, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { projectWorkspaceApi } from "@/lib/api/projectWorkspace";
 import {
@@ -53,7 +54,9 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
     }
   }, [projectId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSave = async () => {
     if (saving) return;
@@ -96,6 +99,7 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
+    
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
     }
@@ -119,64 +123,66 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
     <div className="h-full flex flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-white dark:bg-zinc-900 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-zinc-500">Instructions Editor</span>
-          <Badge variant={hasUnsavedChanges ? "default" : "secondary"} className={`text-[10px] px-1.5 py-0 ${hasUnsavedChanges ? "bg-yellow-100 text-yellow-700" : ""}`}>
-            {hasUnsavedChanges ? <><AlertCircle className="mr-1 h-2.5 w-2.5 inline" /> Unsaved</> : <><CheckCircle className="mr-1 h-2.5 w-2.5 inline" /> Saved</>}
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <Badge variant={hasUnsavedChanges ? "default" : "secondary"} className={`text-xs px-2 py-0.5 ${hasUnsavedChanges ? "bg-yellow-100 text-yellow-700" : ""}`}>
+            {hasUnsavedChanges ? <><AlertCircle className="mr-1 h-3 w-3 inline" /> Unsaved</> : <><CheckCircle className="mr-1 h-3 w-3 inline" /> Saved</>}
           </Badge>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowHistory(!showHistory)}>
-            <Clock className="mr-1 h-3 w-3" />
+          <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)}>
+            <Clock className="mr-1 h-3.5 w-3.5" />
             History
           </Button>
-          <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={saving || !hasUnsavedChanges}>
-            <Save className="mr-1 h-3 w-3" />
-            {saving ? "Saving..." : "Save"}
-          </Button>
         </div>
+        <Button size="sm" onClick={handleSave} disabled={saving || !hasUnsavedChanges}>
+          <Save className="mr-1 h-3.5 w-3.5" />
+          {saving ? "Saving..." : "Save"}
+        </Button>
       </div>
 
-      {/* Editor — fills remaining space */}
-      <div className="flex-1 min-h-0">
-        <textarea
-          value={content}
-          onChange={handleChange}
-          placeholder="Enter project instructions, guidelines, context, and requirements... Supports Markdown."
-          className="w-full h-full resize-none border-0 focus:ring-0 bg-white dark:bg-zinc-900 p-4 font-mono text-sm leading-relaxed"
-          spellCheck={false}
-        />
-      </div>
+      <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <CardHeader className="border-b shrink-0 py-3">
+          <CardTitle className="text-sm">Instructions Editor</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 p-0 min-h-0">
+          <textarea
+            value={content}
+            onChange={handleChange}
+            placeholder="Enter project instructions, guidelines, context, and requirements... Supports Markdown."
+            className="w-full h-full resize-none border-0 focus:ring-0 focus:outline-none bg-transparent p-4 font-mono text-sm leading-relaxed"
+            spellCheck={false}
+          />
+        </CardContent>
+      </Card>
 
-      {/* History panel — slides in from bottom */}
       {showHistory && versions.length > 0 && (
-        <div className="shrink-0 border-t bg-white dark:bg-zinc-900 max-h-48 overflow-auto">
-          <div className="px-4 py-2">
-            <p className="text-xs font-medium text-zinc-500 mb-2">Version History</p>
-            <div className="space-y-1">
+        <Card className="mt-3 shrink-0">
+          <CardHeader className="py-2">
+            <CardTitle className="text-sm">Version History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            <div className="space-y-1 max-h-48 overflow-auto">
               {versions.map((version) => (
-                <div key={version.id} className="flex items-center justify-between p-2 rounded-lg border text-xs">
+                <div key={version.id} className="flex items-center justify-between p-2 border rounded-lg text-sm">
                   <div>
                     <span className="font-medium">v{version.version}</span>
-                    <span className="text-zinc-400 ml-2">{formatDate(version.created_at)}</span>
+                    <span className="text-zinc-400 ml-2 text-xs">{formatDate(version.created_at)}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => handleRestore(version)}>
-                    <RotateCcw className="mr-1 h-2.5 w-2.5" /> Restore
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => handleRestore(version)}>
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Restore
                   </Button>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Restore confirmation */}

@@ -58,6 +58,7 @@ function extractBrowserUrl(messages: Message[]): string | null {
 export function BrowserView({ messages, sessions, onSend, sending, activeChatId, onFile }: BrowserViewProps) {
   const [chatWidth, setChatWidth] = useState(45);
   const draggingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const taskSteps = parseBrowserSteps(messages);
   const browserUrl = extractBrowserUrl(messages);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -65,9 +66,13 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
   const startDrag = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     draggingRef.current = true;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
     const onMove = (ev: MouseEvent) => {
-      const pct = (ev.clientX / window.innerWidth) * 100;
-      setChatWidth(Math.min(75, Math.max(25, pct)));
+      const x = ev.clientX - rect.left;
+      const pct = (x / rect.width) * 100;
+      setChatWidth(Math.min(80, Math.max(20, pct)));
     };
     const onUp = () => {
       draggingRef.current = false;
@@ -79,7 +84,7 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
   }, []);
 
   return (
-    <div className="flex-1 flex min-h-0">
+    <div ref={containerRef} className="flex-1 flex min-h-0">
       {/* Left: chat with agent */}
       <div className="flex flex-col min-w-0" style={{ width: `${chatWidth}%` }}>
         <div className="h-9 shrink-0 border-b bg-white dark:bg-zinc-900 flex items-center gap-2 px-3">

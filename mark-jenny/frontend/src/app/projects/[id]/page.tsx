@@ -55,7 +55,7 @@ export default function ProjectDetailPage() {
         <div className={`flex-1 flex flex-col min-w-0 transition-all ${sidebarOpen ? "ml-64" : "ml-16"}`}>
           <Header />
           <main className="flex-1 overflow-auto">
-            <div className="mx-auto max-w-4xl px-6 py-4">
+            <div className="px-6 py-4">
               {loading ? (
                 <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
               ) : !project ? (

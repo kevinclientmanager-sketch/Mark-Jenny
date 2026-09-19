@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, AudioWaveform, Loader2, Square, Sparkles, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
+import { Send, AudioWaveform, Loader2, Square, Sparkles, Mic, MicOff, Phone, PhoneOff, Gamepad2, Trophy, Brain, Eye, Shield, Zap } from "lucide-react";
 import { plusPromptTemplates, PlusAction, PlusMenu } from "./PlusMenu";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export function ChatInput({
   const [think, setThink] = useState(false);
   const [sending, setSending] = useState(false);
   const [inputMode, setInputMode] = useState<"text" | "voice">("text");
+  const [showSmartMenu, setShowSmartMenu] = useState(false);
 
   // Voice conversation state
   const [voiceActive, setVoiceActive] = useState(false);
@@ -90,7 +91,7 @@ export function ChatInput({
         // Send config
         ws.send(JSON.stringify({
           type: "config",
-          agent: mode === "work" ? "mark" : "jenny",
+          agent: mode === "work" ? "mark" : "imti",
           voice: "en-US-AriaNeural",
         }));
 
@@ -600,6 +601,45 @@ export function ChatInput({
           ) : (
             <div className="flex items-end gap-1.5 p-1.5">
               <PlusMenu onSelect={handlePlus} onFilePick={handleFilePick} />
+
+              {/* Smart agent features for browse mode */}
+              {mode === "browse" && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSmartMenu(!showSmartMenu)}
+                    className="flex h-8 items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-2.5 text-xs font-medium text-purple-600 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 transition-colors shrink-0"
+                    title="Smart Agent Features"
+                  >
+                    <Brain className="h-3.5 w-3.5" />
+                    Smart
+                  </button>
+                  {showSmartMenu && (
+                    <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl py-2 z-50 min-w-[240px]">
+                      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Agent Intelligence</div>
+                      <button onClick={() => { onSend("[SMART] Play on behalf of me — take control and play the best moves. Never let me lose."); setShowSmartMenu(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+                        <Gamepad2 className="h-4 w-4 text-blue-500" />
+                        <div className="text-left"><p className="font-medium">Play on Behalf of Me</p><p className="text-[10px] text-zinc-400">Agent takes control and plays the best moves</p></div>
+                      </button>
+                      <button onClick={() => { onSend("[SMART] Never Lose Mode — analyze the game, predict opponent moves, always find the winning strategy. Win every time."); setShowSmartMenu(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        <div className="text-left"><p className="font-medium">Never Lose Mode</p><p className="text-[10px] text-zinc-400">Analyze, predict, and always find the winning path</p></div>
+                      </button>
+                      <button onClick={() => { onSend("[SMART] Deep Observation — watch and learn from the current situation before taking action. Build knowledge."); setShowSmartMenu(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+                        <Eye className="h-4 w-4 text-green-500" />
+                        <div className="text-left"><p className="font-medium">Deep Observation</p><p className="text-[10px] text-zinc-400">Watch, learn, and build knowledge before acting</p></div>
+                      </button>
+                      <button onClick={() => { onSend("[SMART] Autonomous Task — handle this entire task on your own from start to finish. Make decisions, execute, and report results."); setShowSmartMenu(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+                        <Zap className="h-4 w-4 text-orange-500" />
+                        <div className="text-left"><p className="font-medium">Autonomous Task</p><p className="text-[10px] text-zinc-400">Fully autonomous — agent handles everything end-to-end</p></div>
+                      </button>
+                      <button onClick={() => { onSend("[SMART] Shield Mode — protect my accounts, detect threats, avoid scams, and keep everything safe while browsing."); setShowSmartMenu(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+                        <Shield className="h-4 w-4 text-red-500" />
+                        <div className="text-left"><p className="font-medium">Shield Mode</p><p className="text-[10px] text-zinc-400">Detect threats, avoid scams, stay safe online</p></div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -638,7 +678,7 @@ export function ChatInput({
                   className="h-8 w-8 rounded-full"
                   onClick={startVoiceConversation}
                   disabled={disabled}
-                  title="Start voice conversation — talk to Mark or Jenny"
+                  title="Start voice conversation — talk to Mark or Imti"
                 >
                   <AudioWaveform className="h-4 w-4" />
                 </Button>
@@ -663,7 +703,7 @@ export function ChatInput({
             ? "Work mode — Mark plans, writes code, runs tools, and reports back live."
             : mode === "browse"
               ? "Browse mode — Mark opens the browser, searches, reads pages, and brings back answers."
-              : "Wave icon = voice conversation. Talk naturally to Mark or Jenny."}
+              : "Wave icon = voice conversation. Talk naturally to Mark or Imti."}
         </p>
       </div>
     </div>

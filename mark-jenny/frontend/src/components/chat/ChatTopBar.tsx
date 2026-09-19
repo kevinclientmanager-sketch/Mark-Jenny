@@ -61,9 +61,9 @@ export function ChatTopBar({
   const isBrowseMode = mode === "browse";
 
   return (
-    <header className="h-10 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center gap-0.5 px-2">
+    <header className="h-10 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center gap-0.5 px-2" style={{ overflow: "visible" }}>
       {/* Session tabs — chat/work: show chat tabs, browse: show browser sessions */}
-      <div className="flex items-center gap-0.5 overflow-x-auto flex-1 min-w-0 scrollbar-none">
+      <div className="flex items-center gap-0.5 flex-1 min-w-0" style={{ overflow: "visible" }}>
         {isBrowseMode ? (
           /* Browser sessions as tabs */
           <>
@@ -141,7 +141,7 @@ export function ChatTopBar({
 
               {/* Context dropdown menu */}
               {menuTab === tab.id && (
-                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-[100] min-w-[140px]">
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenamingTab(tab.id); setRenameValue(tab.title); setMenuTab(null); }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700"

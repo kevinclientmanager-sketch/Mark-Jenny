@@ -1,13 +1,13 @@
 "use client";
-import { Camera, Image as ImageIcon, File, Plug, Sparkles, Code2, Presentation, Wand2, Search, Calendar, Table, Video, Music, BookOpen, Laptop, FileText, Code, Bot, Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Camera, Image as ImageIcon, File, Plug, Code2, Presentation, Wand2, Search, Calendar, Table, Video, Music, BookOpen, Laptop, FileText, Code, Bot, Globe, Gamepad2, Trophy, Eye, Zap, Shield, Brain } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export type PlusAction = 
   | "camera" | "picture" | "file" | "connect-computer" | "add-skills"
   | "build-website" | "develop-apps" | "create-slides" | "create-image" | "edit-image"
   | "wide-research" | "scheduled-tasks" | "create-spreadsheet" | "create-video" | "generate-audio" | "playbook"
-  | "create-document" | "create-code" | "assign-agent" | "open-browser";
+  | "create-document" | "create-code" | "assign-agent" | "open-browser"
+  | "smart-play" | "smart-never-lose" | "smart-observe" | "smart-autonomous" | "smart-shield";
 
 const actions: {id: PlusAction; label: string; icon: any; desc: string}[] = [
   {id:"camera", label:"Camera", icon: Camera, desc:"Take photo"},
@@ -32,13 +32,36 @@ const actions: {id: PlusAction; label: string; icon: any; desc: string}[] = [
   {id:"playbook", label:"Playbook", icon: BookOpen, desc:"Blueprint"},
 ];
 
-export function PlusMenu({ onSelect, onFilePick }: { onSelect: (id: PlusAction)=>void; onFilePick?: (f: File)=>void }) {
+const smartActions: {id: PlusAction; label: string; icon: any; desc: string; color: string}[] = [
+  {id:"smart-play", label:"Play on Behalf of Me", icon: Gamepad2, desc:"Agent takes control and plays best moves", color:"text-blue-500"},
+  {id:"smart-never-lose", label:"Never Lose Mode", icon: Trophy, desc:"Analyze, predict, always find winning path", color:"text-yellow-500"},
+  {id:"smart-observe", label:"Deep Observation", icon: Eye, desc:"Watch, learn, build knowledge before acting", color:"text-green-500"},
+  {id:"smart-autonomous", label:"Autonomous Task", icon: Zap, desc:"Fully autonomous end-to-end handling", color:"text-orange-500"},
+  {id:"smart-shield", label:"Shield Mode", icon: Shield, desc:"Detect threats, avoid scams, stay safe", color:"text-red-500"},
+];
+
+export function PlusMenu({ onSelect, onFilePick, mode }: { onSelect: (id: PlusAction)=>void; onFilePick?: (f: File)=>void; mode?: "chat" | "work" | "browse" }) {
+  const isBrowse = mode === "browse";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="inline-flex items-center justify-center h-9 w-9 rounded-full border bg-white dark:bg-zinc-900 hover:bg-zinc-100 text-xl">
         +
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 max-h-80 overflow-auto p-1">
+        {isBrowse && (
+          <>
+            <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-purple-500 flex items-center gap-1.5">
+              <Brain className="h-3 w-3" /> Agent Intelligence
+            </div>
+            {smartActions.map(a => (
+              <DropdownMenuItem key={a.id} onClick={() => onSelect(a.id)} className="gap-2 py-2">
+                <a.icon className={`h-4 w-4 ${a.color}`} /> <div className="flex flex-col"><span className="text-sm">{a.label}</span><span className="text-xs text-zinc-500">{a.desc}</span></div>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </>
+        )}
         {actions.map(a => (
           <DropdownMenuItem key={a.id} onClick={() => {
             if (a.id==="file" || a.id==="picture") {
@@ -83,4 +106,9 @@ export const plusPromptTemplates: Record<PlusAction,string> = {
   "assign-agent":"Assign to an agent to ",
   "open-browser":"Open the browser and ",
   "playbook":"Create a playbook for ",
+  "smart-play":"[SMART] Play on behalf of me — take control and play the best moves. Never let me lose.",
+  "smart-never-lose":"[SMART] Never Lose Mode — analyze the game, predict opponent moves, always find the winning strategy. Win every time.",
+  "smart-observe":"[SMART] Deep Observation — watch and learn from the current situation before taking action. Build knowledge.",
+  "smart-autonomous":"[SMART] Autonomous Task — handle this entire task on your own from start to finish. Make decisions, execute, and report results.",
+  "smart-shield":"[SMART] Shield Mode — protect my accounts, detect threats, avoid scams, and keep everything safe while browsing.",
 };

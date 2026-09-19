@@ -137,13 +137,6 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
     <div ref={containerRef} className="flex-1 flex min-h-0">
       {/* Left: chat with agent */}
       <div className="flex flex-col min-w-0" style={{ width: `${chatWidth}%` }}>
-        <div className="h-9 shrink-0 border-b bg-white dark:bg-zinc-900 flex items-center gap-2 px-3">
-          <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
-          <span className="text-xs font-medium">Agent Chat</span>
-          {messages.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">{messages.length}</Badge>
-          )}
-        </div>
 
         {taskSteps.length > 0 && (
           <div className="shrink-0 border-b bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 max-h-36 overflow-y-auto">

@@ -392,15 +392,17 @@ export default function ChatPage() {
         />
         <div className={`flex-1 flex flex-col min-w-0 transition-all ${sidebarOpen ? "ml-64" : "ml-16"}`}>
           <ChatTopBar
-            tabs={openTabs.map((t) => ({ id: t.id, title: t.title, active: t.id === activeChatId }))}
+            tabs={mode !== "browse" ? openTabs.map((t) => ({ id: t.id, title: t.title, active: t.id === activeChatId })) : undefined}
             onTabSelect={handleTabSelect}
             onTabClose={closeTab}
             onTabNew={handleNewTab}
             rightPanelOpen={workOpen}
             onToggleRightPanel={() => setWorkOpen((v) => !v)}
-            activeProjectName={projects.find((p) => p.id === projectId)?.name}
+            activeProjectName={mode !== "browse" ? projects.find((p) => p.id === projectId)?.name : undefined}
             isPinned={activeChatId ? pinned.includes(activeChatId) : false}
             onTogglePin={activeChatId ? () => togglePin(activeChatId) : undefined}
+            mode={mode}
+            browserSessions={browseSessions}
           />
           <div className="flex-1 flex min-h-0">
             {/* Main column */}

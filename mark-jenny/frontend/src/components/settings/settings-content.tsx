@@ -977,9 +977,17 @@ export function SettingsContent() {
                           <p className="text-xs text-zinc-500 mt-0.5">{model.desc}</p>
                           <p className="text-[10px] text-zinc-400 mt-0.5">{model.size}</p>
                         </div>
-                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => {
-                          toast.add({ title: `Pulling ${model.name}...`, type: "info", timeout: 10000 });
-                          // In real implementation: trigger ollama pull via backend
+                        <Button size="sm" variant="outline" className="shrink-0" onClick={async () => {
+                          toast.add({ title: `Pulling ${model.name}...`, type: "info", timeout: 30000 });
+                          try {
+                            const res = await fetch("http://localhost:11434/api/pull", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: model.id, stream: false }),
+                            });
+                            if (res.ok) toast.add({ title: `${model.name} pulled successfully`, type: "success" });
+                            else toast.add({ title: `Failed to pull ${model.name}`, type: "error" });
+                          } catch { toast.add({ title: "Ollama not reachable. Is it running?", type: "error" }); }
                         }}>Download</Button>
                       </div>
                     ))}
@@ -1048,8 +1056,13 @@ export function SettingsContent() {
                           <p className="text-xs text-zinc-500 mt-0.5">{model.desc}</p>
                           <p className="text-[10px] text-zinc-400 mt-0.5">{model.size}</p>
                         </div>
-                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => {
-                          toast.add({ title: `Loading ${model.name} via AirLLM...`, type: "info", timeout: 15000 });
+                        <Button size="sm" variant="outline" className="shrink-0" onClick={async () => {
+                          toast.add({ title: `Loading ${model.name} via AirLLM...`, type: "info", timeout: 60000 });
+                          try {
+                            const res = await api.post("/integrations/airllm/load", { model_id: model.id });
+                            if ((res as any)?.success) toast.add({ title: `${model.name} loaded`, type: "success" });
+                            else toast.add({ title: `Failed: ${(res as any)?.error || "Unknown error"}`, type: "error" });
+                          } catch { toast.add({ title: "AirLLM not available. Install: pip install airllm", type: "error" }); }
                         }}>Load</Button>
                       </div>
                     ))}

@@ -25,11 +25,24 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
       chunksRef.current=[];
       rec.ondataavailable = e=>{ if(e.data.size>0) chunksRef.current.push(e.data); };
       rec.onstop = async ()=>{
-        // For now, stub transcription - in Phase 11 will call Whisper/Ollama
         const blob = new Blob(chunksRef.current, {type:'audio/webm'});
-        // Try Web Speech API fallback if available
-        let text = `[Voice ${mode}: ${Math.round(timer)}s audio - ${blob.size} bytes]`;
-        // Simple heuristic: if browser supports transcription, we would transcode here
+        let text = "";
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "recording.webm");
+          formData.append("format", "webm");
+          const token = localStorage.getItem("access_token");
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/voice/transcribe`, {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            text = data.text || data.transcript || "";
+          }
+        } catch {}
+        if (!text) text = `[Voice ${mode}: ${Math.round(timer)}s audio - ${blob.size} bytes]`;
         onTranscribed(text, mode);
         stream.getTracks().forEach(t=>t.stop());
         setTimer(0);
@@ -72,7 +85,7 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
         </div>
         {recording && <Loader2 className="h-4 w-4 animate-spin"/>}
       </div>
-      <p className="text-[11px] text-zinc-400">Audio stays on device until you send. Transcription runs locally/cloud per Phase 11 Model Router - stub now.</p>
+      <p className="text-[11px] text-zinc-400">Audio stays on device until transcribed. Uses backend Whisper/STT when available.</p>
     </div>
   );
 }

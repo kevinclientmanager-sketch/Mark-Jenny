@@ -7,6 +7,7 @@ import { RightPanel } from "@/components/chat/RightPanel";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { BrowserView } from "@/components/chat/BrowserView";
 import { browserApi } from "@/lib/api/browser";
 import { chatApi, Chat, Message } from "@/lib/api/chat";
 import { filesApi } from "@/lib/api/files";
@@ -405,129 +406,62 @@ export default function ChatPage() {
             browserSessions={browseSessions}
           />
           <div className="flex-1 flex min-h-0">
-            {/* Main column */}
-            <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 dark:bg-zinc-950">
-              {/* Slim context bar */}
-              <div className="h-11 shrink-0 border-b bg-white dark:bg-zinc-900 flex items-center gap-3 px-4">
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  {routeNote ? (
-                    <div className="flex items-center gap-2 rounded-full border bg-white dark:bg-zinc-900 py-1 pl-3 pr-1 text-xs text-zinc-600 dark:text-zinc-300 shadow-sm">
-                      <Zap className="h-3.5 w-3.5 text-blue-500" />
-                      <span>Mark routed → <span className="font-medium">{routeNote.tool}</span></span>
-                      {routeNote.think && (
-                        <span className="rounded-full bg-blue-600/10 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">Think</span>
-                      )}
-                      {routeNote.project && (
-                        <span className="text-muted-foreground">· project: <span className="font-medium text-zinc-800 dark:text-zinc-100">{routeNote.project.name}</span></span>
-                      )}
-                      <button onClick={() => setRouteNote(null)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700" title="Dismiss"><X className="h-3 w-3" /></button>
-                    </div>
-                  ) : (
-                    <span className="truncate text-xs text-zinc-400">
-                      {mode === "work"
-                        ? "Work mode — Mark plans, builds and runs it. Open the Agent panel to watch live."
-                        : mode === "browse"
-                          ? "Browse mode — Mark opens the browser, searches, reads pages and reports back live."
-                          : "Chat — Mark reads your request, routes it, and does the work."}
-                    </span>
-                  )}
-                </div>
-                <select
-                  value={projectId ?? ""}
-                  onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : undefined)}
-                  className="h-8 max-w-[180px] cursor-pointer rounded-lg border bg-transparent px-2 text-xs text-zinc-600 dark:text-zinc-300 dark:bg-zinc-900"
-                  title="Project context"
-                >
-                  <option value="">General (no project)</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <Button
-                  variant={workOpen ? "default" : "outline"}
-                  size="sm"
-                  className={cn("h-8 gap-1.5", workOpen && "bg-blue-600 text-white hover:bg-blue-700")}
-                  onClick={() => setWorkOpen((v) => !v)}
-                  title="Toggle Agent / Browser panel"
-                >
-                  <PanelRight className="h-3.5 w-3.5" /> Agent panel
-                  {taskUpdate && <span className="animate-pulse rounded-full bg-blue-500" style={{ width: 6, height: 6 }} />}
-                </Button>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 min-h-0">
-                {loadingMsgs ? (
-                  <div className="flex h-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
-                ) : messages.length === 0 ? (
-                  <div className="flex h-full flex-col overflow-y-auto">
-                    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
-                      {mode === "work"
-                        ? <Code2 className="h-10 w-10 text-zinc-300 dark:text-zinc-700" />
-                        : mode === "browse"
-                          ? <Globe className="h-10 w-10 text-zinc-300 dark:text-zinc-700" />
-                          : <BrainCircuit className="h-10 w-10 text-zinc-300 dark:text-zinc-700" />}
-                      <h2 className="text-2xl font-semibold tracking-tight">
-                        {mode === "work" ? "What should I build?" : mode === "browse" ? "What should I browse?" : "What can I help you build?"}
-                      </h2>
-                      <p className="max-w-md text-center text-sm text-zinc-500">
-                        {mode === "work"
-                          ? "Work mode is the builder — Mark plans, writes code, runs tools, and reports back live. Just describe the app and it handles the rest."
-                          : mode === "browse"
-                            ? "Browse mode gives Mark a real browser — it can search the web, read pages, compare options, extract data, and bring back answers."
-                            : "Describe what you want in plain words — Mark reads it, decides what's needed, and does it while you watch. No technical knowledge required."}
-                      </p>
-                    </div>
-                    <div className="mx-auto w-full max-w-3xl px-4 pb-2">
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {(mode === "work" ? WORK_SUGGESTIONS : mode === "browse" ? BROWSE_SUGGESTIONS : SUGGESTIONS).map((s) => (
-                          <button
-                            key={s.label}
-                            onClick={() => handleSuggestion(s.prompt)}
-                            className="group flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-white dark:hover:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700"
-                          >
-                            <s.icon className="h-4 w-4 text-zinc-400 group-hover:text-blue-500" />
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <MessageList
-                    messages={messages}
-                    chatId={activeChatId || 0}
-                    onMessagesChanged={() => fetchMsgs(activeChatId!)}
-                  />
-                )}
-              </div>
-
-              <ChatInput
+            {mode === "browse" ? (
+              <BrowserView
+                messages={messages}
+                sessions={browseSessions}
                 onSend={handleSend}
+                sending={sending}
+                activeChatId={activeChatId}
                 onFile={handleFile}
-                disabled={sending || !activeChatId}
-                mode={mode}
-                chips={mode === "work" ? WORK_CHIPS : []}
               />
-              {taskId && <div className="px-3 pb-1 text-xs text-zinc-500 text-center">Pipeline: Intent → Decompose → Plan → Skill/Model → Tool → Execute → Validate → Memory → Storage | Task #{taskId} {connected ? "● WS live" : "○ WS offline"}</div>}
-            </div>
-
-            {/* Right panel — multi-tab live view (Code, Terminal, Browser, Files, Context) */}
-            {workOpen && (
+            ) : (
               <>
-                <div onMouseDown={startResize} className="w-1 cursor-col-resize hover:bg-blue-400 bg-zinc-200 dark:bg-zinc-700 shrink-0" title="Drag to resize" />
-                <div className="border-l shrink-0" style={{ width: workWidth }}>
-                  <RightPanel
-                    taskUpdate={taskUpdate ?? undefined}
-                    connected={connected}
-                    projectFiles={undefined}
-                    chatHistory={(projectId ? chats.filter((c: any) => c.project_id === projectId) : chats).map((c) => ({
-                      id: c.id,
-                      title: c.title ?? undefined,
-                      last_message: c.last_message ?? undefined,
-                      created_at: c.created_at,
-                    }))}
-                    onClose={() => setWorkOpen(false)}
-                  />
+                <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 dark:bg-zinc-950">
+                  <div className="flex-1 min-h-0">
+                    {loadingMsgs ? (
+                      <div className="flex h-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : messages.length === 0 ? (
+                      <div className="flex h-full flex-col overflow-y-auto">
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
+                          {mode === "work"
+                            ? <Code2 className="h-10 w-10 text-zinc-300 dark:text-zinc-700" />
+                            : <BrainCircuit className="h-10 w-10 text-zinc-300 dark:text-zinc-700" />}
+                          <h2 className="text-2xl font-semibold tracking-tight">
+                            {mode === "work" ? "What should I build?" : "What can I help you build?"}
+                          </h2>
+                          <p className="max-w-md text-center text-sm text-zinc-500">
+                            {mode === "work"
+                              ? "Work mode is the builder — Mark plans, writes code, runs tools, and reports back live. Just describe the app and it handles the rest."
+                              : "Describe what you want in plain words — Mark reads it, decides what's needed, and does it while you watch. No technical knowledge required."}
+                          </p>
+                        </div>
+                        <div className="mx-auto w-full max-w-3xl px-4 pb-2">
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {(mode === "work" ? WORK_SUGGESTIONS : SUGGESTIONS).map((s) => (
+                              <button key={s.label} onClick={() => handleSuggestion(s.prompt)} className="group flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-white dark:hover:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700">
+                                <s.icon className="h-4 w-4 text-zinc-400 group-hover:text-blue-500" />
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <MessageList messages={messages} chatId={activeChatId || 0} onMessagesChanged={() => fetchMsgs(activeChatId!)} />
+                    )}
+                  </div>
+                  <ChatInput onSend={handleSend} onFile={handleFile} disabled={sending || !activeChatId} mode={mode} chips={mode === "work" ? WORK_CHIPS : []} />
+                  {taskId && <div className="px-3 pb-1 text-xs text-zinc-500 text-center">Task #{taskId} {connected ? "● WS live" : "○ WS offline"}</div>}
                 </div>
+                {workOpen && (
+                  <>
+                    <div onMouseDown={startResize} className="w-1 cursor-col-resize hover:bg-blue-400 bg-zinc-200 dark:bg-zinc-700 shrink-0" title="Drag to resize" />
+                    <div className="border-l shrink-0" style={{ width: workWidth }}>
+                      <RightPanel taskUpdate={taskUpdate ?? undefined} connected={connected} projectFiles={undefined} chatHistory={(projectId ? chats.filter((c: any) => c.project_id === projectId) : chats).map((c) => ({ id: c.id, title: c.title ?? undefined, last_message: c.last_message ?? undefined, created_at: c.created_at }))} onClose={() => setWorkOpen(false)} />
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

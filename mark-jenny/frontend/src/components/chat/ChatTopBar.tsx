@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchIcon, Settings, Moon, Sun, PanelRightClose, PanelRight, X, Plus } from "lucide-react";
+import { SearchIcon, Settings, Moon, Sun, PanelRightClose, PanelRight, X, Plus, Pin, PinOff } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { setSearchOpen } from "@/lib/nav/search-store";
@@ -21,6 +21,8 @@ export function ChatTopBar({
   rightPanelOpen,
   onToggleRightPanel,
   activeProjectName,
+  isPinned,
+  onTogglePin,
 }: {
   tabs?: Tab[];
   onTabSelect?: (id: number) => void;
@@ -29,6 +31,8 @@ export function ChatTopBar({
   rightPanelOpen?: boolean;
   onToggleRightPanel?: () => void;
   activeProjectName?: string;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
@@ -73,12 +77,26 @@ export function ChatTopBar({
         )}
       </div>
 
-      {/* Center: active project/chat name */}
-      {activeProjectName && (
-        <div className="hidden md:flex items-center gap-1.5 px-3 shrink-0">
+      {/* Center: active project/chat name + pin */}
+      <div className="hidden md:flex items-center gap-1.5 px-3 shrink-0">
+        {activeProjectName && (
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate max-w-[200px]">{activeProjectName}</span>
-        </div>
-      )}
+        )}
+        {onTogglePin && (
+          <button
+            onClick={onTogglePin}
+            className={cn(
+              "rounded-md p-1 transition-colors",
+              isPinned
+                ? "text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            )}
+            title={isPinned ? "Unpin from top" : "Pin to top"}
+          >
+            {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
 
       {/* Right-side icons */}
       <div className="flex items-center gap-0.5 shrink-0">

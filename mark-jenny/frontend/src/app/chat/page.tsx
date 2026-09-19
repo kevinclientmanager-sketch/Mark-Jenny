@@ -399,6 +399,8 @@ export default function ChatPage() {
             rightPanelOpen={workOpen}
             onToggleRightPanel={() => setWorkOpen((v) => !v)}
             activeProjectName={projects.find((p) => p.id === projectId)?.name}
+            isPinned={activeChatId ? pinned.includes(activeChatId) : false}
+            onTogglePin={activeChatId ? () => togglePin(activeChatId) : undefined}
           />
           <div className="flex-1 flex min-h-0">
             {/* Main column */}
@@ -515,6 +517,12 @@ export default function ChatPage() {
                     taskUpdate={taskUpdate ?? undefined}
                     connected={connected}
                     projectFiles={undefined}
+                    chatHistory={(projectId ? chats.filter((c: any) => c.project_id === projectId) : chats).map((c) => ({
+                      id: c.id,
+                      title: c.title ?? undefined,
+                      last_message: c.last_message ?? undefined,
+                      created_at: c.created_at,
+                    }))}
                     onClose={() => setWorkOpen(false)}
                   />
                 </div>

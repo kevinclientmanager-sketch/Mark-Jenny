@@ -464,6 +464,30 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
                   projectRow
                 )
               )}
+              {/* Show project-related chats when a project is selected */}
+              {chatData.projectId && (
+                <div className="mt-3 border-t border-zinc-200 dark:border-zinc-800 pt-3">
+                  <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                    Project Chats
+                  </p>
+                  {chatData.chats.filter((c) => (c as any).project_id === chatData.projectId).length === 0 ? (
+                    <p className="px-3 py-1 text-xs text-zinc-400">No chats for this project yet.</p>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {chatData.chats
+                        .filter((c) => (c as any).project_id === chatData.projectId)
+                        .slice(0, 10)
+                        .map(chatRow)}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => chatData.onNewChat()}
+                    className="mt-2 flex w-full items-center gap-2 rounded-lg p-2 text-left text-blue-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> New chat in this project
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             chatData.browseSessions.length === 0 ? (

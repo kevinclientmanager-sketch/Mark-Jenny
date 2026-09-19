@@ -130,7 +130,7 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <h2 className="text-xl font-semibold">Project Instructions</h2>
           <p className="text-zinc-500 text-sm">Guidelines and context for this project</p>
@@ -148,49 +148,49 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
             {saving ? "Saving..." : "Save"}
           </Button>
         </div>
+      </div>
 
-        <Card className="flex-1 flex flex-col">
-          <CardHeader className="border-b">
-            <CardTitle>Instructions Editor</CardTitle>
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="border-b shrink-0 py-3">
+          <CardTitle className="text-sm">Instructions Editor</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 p-0 min-h-0">
+          <textarea
+            value={content}
+            onChange={handleChange}
+            placeholder="Enter project instructions, guidelines, context, and requirements... Supports Markdown."
+            className="w-full h-full min-h-[300px] resize-none border-0 focus:ring-0 bg-transparent p-4 font-mono text-sm leading-relaxed"
+            spellCheck={false}
+          />
+        </CardContent>
+      </Card>
+
+      {showHistory && versions.length > 0 && (
+        <Card className="mt-4 shrink-0">
+          <CardHeader className="py-3">
+            <h3 className="text-lg font-medium">Version History</h3>
           </CardHeader>
-          <CardContent className="flex-1 p-0">
-            <textarea
-              value={content}
-              onChange={handleChange}
-              placeholder="Enter project instructions, guidelines, context, and requirements... Supports Markdown."
-              className="h-full min-h-[400px] resize-none border-0 focus:ring-0 bg-transparent p-4 font-mono text-sm"
-              spellCheck={false}
-            />
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-auto">
+              {versions.map((version) => (
+                <div key={version.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Version {version.version}</p>
+                    <p className="text-sm text-zinc-500">Updated {formatDate(version.created_at)}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => handleRestore(version)}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Restore
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {versions.length === 0 && (
+              <p className="text-zinc-500 text-center py-4">No version history yet</p>
+            )}
           </CardContent>
         </Card>
-
-        {showHistory && versions.length > 0 && (
-          <Card className="mt-4">
-            <CardHeader>
-              <h3 className="text-lg font-medium">Version History</h3>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-64 overflow-auto">
-                {versions.map((version) => (
-                  <div key={version.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Version {version.version}</p>
-                      <p className="text-sm text-zinc-500">Updated {formatDate(version.created_at)}</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => handleRestore(version)}>
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      Restore
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              {versions.length === 0 && (
-                <p className="text-zinc-500 text-center py-4">No version history yet</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      )}
 
       {/* Restore confirmation */}
       <Sheet open={!!restoreTarget} onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}>
@@ -208,5 +208,5 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
         </SheetContent>
       </Sheet>
     </div>
-    );
-  }
+  );
+}

@@ -3,13 +3,14 @@
 import { useState } from "react";
 import {
   Code2, Terminal, Globe, FileText, Layers, X, ChevronDown,
-  FolderOpen, File, FileCode, RefreshCw, ExternalLink, Maximize2, Minimize2
+  FolderOpen, File, FileCode, RefreshCw, ExternalLink, Maximize2, Minimize2,
+  Clock, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type RightPanelTab = "code" | "terminal" | "browser" | "files" | "context";
+export type RightPanelTab = "code" | "terminal" | "browser" | "files" | "context" | "history";
 
 interface FileEntry {
   name: string;
@@ -34,6 +35,7 @@ interface RightPanelProps {
   connected: boolean;
   browserUrl?: string;
   projectFiles?: FileEntry[];
+  chatHistory?: { id: number; title?: string; last_message?: string; created_at: string }[];
   onClose: () => void;
 }
 
@@ -43,6 +45,7 @@ const TABS: { id: RightPanelTab; label: string; icon: React.ComponentType<{ clas
   { id: "browser", label: "Browser", icon: Globe },
   { id: "files", label: "Files", icon: FileText },
   { id: "context", label: "Context", icon: Layers },
+  { id: "history", label: "History", icon: Clock },
 ];
 
 function CodeTab({ taskUpdate }: { taskUpdate?: RightPanelProps["taskUpdate"] }) {
@@ -182,6 +185,43 @@ function FilesTab({ projectFiles }: { projectFiles?: FileEntry[] }) {
   );
 }
 
+function HistoryTab({ chatHistory }: { chatHistory?: RightPanelProps["chatHistory"] }) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-3 py-2 border-b text-xs">
+        <Clock className="h-3.5 w-3.5 text-zinc-500" />
+        <span className="font-medium text-zinc-700 dark:text-zinc-300">Chat History</span>
+      </div>
+      <div className="flex-1 overflow-auto">
+        {chatHistory && chatHistory.length > 0 ? (
+          <div className="space-y-0.5 p-1">
+            {chatHistory.map((chat) => (
+              <div
+                key={chat.id}
+                className="flex items-start gap-2 rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="h-3.5 w-3.5 shrink-0 text-zinc-400 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{chat.title || "Untitled"}</p>
+                  <p className="text-[11px] text-zinc-500 truncate">{chat.last_message || "No messages"}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">
+                    {new Date(chat.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-zinc-400 gap-2 p-3">
+            <Clock className="h-8 w-8" />
+            <p className="text-xs text-center">Chat history for this project will appear here.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ContextTab({ taskUpdate, connected }: { taskUpdate?: RightPanelProps["taskUpdate"]; connected: boolean }) {
   return (
     <div className="flex flex-col h-full">
@@ -231,6 +271,7 @@ export function RightPanel({
   connected,
   browserUrl,
   projectFiles,
+  chatHistory,
   onClose,
 }: RightPanelProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>("code");
@@ -274,6 +315,7 @@ export function RightPanel({
         {activeTab === "browser" && <BrowserTab browserUrl={browserUrl} />}
         {activeTab === "files" && <FilesTab projectFiles={projectFiles} />}
         {activeTab === "context" && <ContextTab taskUpdate={taskUpdate} connected={connected} />}
+        {activeTab === "history" && <HistoryTab chatHistory={chatHistory} />}
       </div>
     </div>
   );

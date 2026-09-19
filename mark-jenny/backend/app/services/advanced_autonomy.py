@@ -7,43 +7,94 @@ from app.models.task import Task, TaskStatus
 from app.models.knowledge import Memory, MemoryType
 from app.db.base import SessionLocal
 
+
+def _call_ai(prompt: str, system: str = "", timeout: int = 120) -> str:
+    """Call AI model."""
+    try:
+        from app.services.model_caller import model_caller
+        return model_caller.call(prompt, system_prompt=system, timeout=timeout)
+    except Exception:
+        pass
+    try:
+        import httpx
+        from app.core.config import get_settings
+        settings = get_settings()
+        base = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")
+        try:
+            tags = httpx.get(f"{base}/api/tags", timeout=5).json()
+            models = tags.get("models", [])
+            model_name = models[0]["name"] if models else "qwen3-vl:8b"
+        except:
+            model_name = "qwen3-vl:8b"
+        resp = httpx.post(
+            f"{base}/api/generate",
+            json={"model": model_name, "prompt": prompt, "system": system, "stream": False},
+            timeout=timeout,
+        )
+        return resp.json().get("response", "")
+    except Exception:
+        return ""
+
+
 class SelfCheckLoop:
     def evaluate(self, task: Task, db: Session) -> Dict[str, Any]:
+        """AI-powered evaluation of task completion quality."""
+        system = (
+            "You are a quality assurance expert. Evaluate whether this task was completed successfully. "
+            "Check: objective satisfaction, output quality, completeness, correctness, and edge cases. "
+            "Output JSON: {\"satisfied\": bool, \"quality_score\": int 0-100, "
+            "\"checks\": {\"objective_satisfied\": bool, \"output_quality\": str, \"completeness\": str, "
+            "\"correctness\": str, \"edge_cases\": str}, "
+            "\"issues\": [str], \"needs_correction\": bool}"
+        )
+        task_info = f"Title: {task.title}\nRequest: {task.original_request}\nStatus: {task.status.value}"
+        if task.result:
+            result_str = json.dumps(task.result) if isinstance(task.result, dict) else str(task.result)
+            task_info += f"\nResult: {result_str[:3000]}"
+        if task.error:
+            task_info += f"\nError: {task.error}"
+
+        ai_eval = _call_ai(
+            f"Evaluate task completion:\n{task_info}",
+            system=system, timeout=120,
+        )
+        if ai_eval:
+            try:
+                cleaned = ai_eval.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[1]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                result = json.loads(cleaned.strip())
+                result["ai_powered"] = True
+                return result
+            except:
+                pass
+
+        # Fallback: basic checks
         checks = {
             "objective_satisfied": bool(task.result),
             "files_present": self._check_files(task, db),
-            "calculations_valid": self._check_calculations(task),
+            "calculations_valid": True,
             "outputs_readable": self._check_outputs(task),
             "tool_failed": bool(task.error),
             "omitted_requirement": self._check_omission(task),
         }
         satisfied = all([
-            checks["objective_satisfied"],
-            checks["files_present"],
-            checks["calculations_valid"],
-            checks["outputs_readable"],
-            not checks["tool_failed"],
-            not checks["omitted_requirement"]
+            checks["objective_satisfied"], checks["files_present"],
+            checks["calculations_valid"], checks["outputs_readable"],
+            not checks["tool_failed"], not checks["omitted_requirement"]
         ])
-        return {"satisfied": satisfied, "checks": checks, "needs_correction": not satisfied}
+        return {"satisfied": satisfied, "checks": checks, "needs_correction": not satisfied, "ai_powered": False}
 
     def _check_files(self, task: Task, db: Session) -> bool:
         from app.models.file import File
         if task.result and isinstance(task.result, dict) and task.result.get("files"):
             return True
-        # If task has files linked, consider present
         count = db.query(File).filter(File.task_id == task.id).count()
         return count > 0 or task.status == TaskStatus.COMPLETED
 
-    def _check_calculations(self, task: Task) -> bool:
-        # Stub: validate calculations in result if any
-        if task.result and "calculations" in str(task.result).lower():
-            # would validate math
-            return True
-        return True
-
     def _check_outputs(self, task: Task) -> bool:
-        # Check if outputs are readable (not empty, not error)
         if task.error:
             return False
         if task.result and isinstance(task.result, dict) and task.result.get("error"):
@@ -51,44 +102,39 @@ class SelfCheckLoop:
         return True
 
     def _check_omission(self, task: Task) -> bool:
-        # Check if original request keywords are covered in result
         if not task.original_request or not task.result:
             return False
         orig = task.original_request.lower()
         result_str = json.dumps(task.result).lower() if task.result else ""
-        # Simple: if request mentions "spreadsheet" but result has no file, omission
-        if "spreadsheet" in orig and "spreadsheet" not in result_str and "xlsx" not in result_str:
-            return True
+        keywords = ["spreadsheet", "report", "website", "code", "image", "document"]
+        for kw in keywords:
+            if kw in orig and kw not in result_str and f"{kw}" not in result_str:
+                return True
         return False
 
     def corrective_actions(self, evaluation: Dict) -> List[str]:
+        if evaluation.get("ai_powered") and evaluation.get("issues"):
+            return evaluation["issues"]
         actions = []
-        checks = evaluation["checks"]
-        if not checks["objective_satisfied"]:
+        checks = evaluation.get("checks", {})
+        if not checks.get("objective_satisfied"):
             actions.append("Re-execute main goal with clarified prompt")
-        if not checks["files_present"]:
+        if not checks.get("files_present"):
             actions.append("Regenerate missing files")
-        if not checks["calculations_valid"]:
-            actions.append("Recalculate and validate")
-        if not checks["outputs_readable"]:
-            actions.append("Fix tool failure and retry")
-        if checks["omitted_requirement"]:
-            actions.append("Add omitted requirement (e.g., spreadsheet)")
+        if checks.get("omitted_requirement"):
+            actions.append("Add omitted requirement")
         return actions
+
 
 class CheckpointManager:
     def save(self, task: Task, step: int, state: Dict, db: Session):
-        # Save checkpoint as TaskRun or in task.plan checkpoints
         if not task.plan:
             task.plan = {}
         if "checkpoints" not in task.plan:
             task.plan["checkpoints"] = []
         task.plan["checkpoints"].append({
-            "step": step,
-            "state": state,
-            "timestamp": datetime.utcnow().isoformat()
+            "step": step, "state": state, "timestamp": datetime.utcnow().isoformat()
         })
-        # Use flag to force update of JSON column
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(task, "plan")
         db.commit()
@@ -102,8 +148,35 @@ class CheckpointManager:
     def list_checkpoints(self, task: Task) -> List[Dict]:
         return (task.plan or {}).get("checkpoints", [])
 
+
 class ErrorRecovery:
     def analyze(self, error: str) -> Dict:
+        """AI-powered error analysis and recovery strategy."""
+        system = (
+            "You are an error recovery specialist. Analyze the error and provide a comprehensive recovery plan. "
+            "Consider: root cause, immediate fix, long-term prevention, alternative approaches, "
+            "and whether to retry or escalate. "
+            "Output JSON: {\"type\": str, \"root_cause\": str, \"retry\": bool, \"alternative\": str, "
+            "\"strategy\": str, \"prevention\": str, \"confidence\": int}"
+        )
+        ai_result = _call_ai(
+            f"Analyze this error and provide recovery strategy:\n\nError: {error[:2000]}",
+            system=system, timeout=60,
+        )
+        if ai_result:
+            try:
+                cleaned = ai_result.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[1]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                result = json.loads(cleaned.strip())
+                result["ai_powered"] = True
+                return result
+            except:
+                pass
+
+        # Fallback
         err_lower = error.lower() if error else ""
         if "timeout" in err_lower:
             return {"type": "timeout", "retry": True, "alternative": "Increase timeout and retry with backoff"}
@@ -117,23 +190,22 @@ class ErrorRecovery:
 
     def should_retry(self, task: Task, error: str, attempt: int) -> bool:
         analysis = self.analyze(error)
-        if not analysis["retry"]:
+        if not analysis.get("retry", True):
             return False
         if attempt >= 3:
             return False
         return True
 
     def next_backoff(self, attempt: int) -> int:
-        return min(2 ** attempt, 60)  # exponential up to 60s
+        return min(2 ** attempt, 60)
+
 
 class MemoryLayerManager:
-    # Handles 5 Phase-14 memory types on top of existing 9-layer
     def store_task_memory(self, db: Session, task: Task, decision: str, confidence: int = 80):
         m = Memory(type=MemoryType.TASK, content=decision, source=f"task:{task.id}", owner_id=task.owner_id, project_id=task.project_id, task_id=task.id, confidence=confidence, importance=60)
         db.add(m); db.commit()
 
     def store_preference(self, db: Session, user_id: int, preference: str, project_id: Optional[int]=None):
-        # Only store explicitly approved preferences
         m = Memory(type=MemoryType.USER_PREFERENCE, content=preference, source="user_approved", owner_id=user_id, project_id=project_id, confidence=100, importance=90)
         db.add(m); db.commit()
 
@@ -153,6 +225,7 @@ class MemoryLayerManager:
         failures = db.query(Memory).filter(Memory.owner_id==user_id, Memory.type==MemoryType.FAILURE, Memory.enabled==True).all()
         return [f.content for f in failures]
 
+
 class MultiAgentDelegation:
     SPECIALIZED_AGENTS = {
         "research": {"type": "RESEARCH", "skills": ["research-agent"], "model": "research"},
@@ -167,6 +240,43 @@ class MultiAgentDelegation:
     }
 
     def delegate(self, primary_task: Task, subtasks: List[Dict]) -> List[Dict]:
+        """AI-powered task delegation to specialized agents."""
+        system = (
+            "You are a task delegation expert. Analyze each subtask and assign it to the optimal agent. "
+            "Consider: task type, complexity, required skills, and agent capabilities. "
+            "Output JSON: {\"delegations\": [{\"title\": str, \"agent\": str, \"reason\": str, \"priority\": str}]}"
+        )
+        task_descriptions = [f"- {st.get('title', 'Unknown')}" for st in subtasks]
+        ai_result = _call_ai(
+            f"Delegate these subtasks to optimal agents:\n{chr(10).join(task_descriptions)}\n\n"
+            f"Available agents: {json.dumps(list(self.SPECIALIZED_AGENTS.keys()))}",
+            system=system, timeout=60,
+        )
+        if ai_result:
+            try:
+                cleaned = ai_result.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[1]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                ai_data = json.loads(cleaned.strip())
+                delegations = ai_data.get("delegations", [])
+                result = []
+                for i, st in enumerate(subtasks):
+                    agent_key = delegations[i]["agent"] if i < len(delegations) else "research"
+                    if agent_key not in self.SPECIALIZED_AGENTS:
+                        agent_key = "research"
+                    result.append({
+                        **st,
+                        "assigned_agent": agent_key,
+                        "agent_config": self.SPECIALIZED_AGENTS[agent_key],
+                        "delegation_reason": delegations[i].get("reason", "") if i < len(delegations) else "",
+                    })
+                return result
+            except:
+                pass
+
+        # Fallback: keyword matching
         delegated = []
         for st in subtasks:
             title = st.get("title","").lower()
@@ -182,21 +292,49 @@ class MultiAgentDelegation:
             delegated.append({**st, "assigned_agent": agent_key, "agent_config": self.SPECIALIZED_AGENTS[agent_key]})
         return delegated
 
+
 class Supervisor:
     def verify(self, task: Task, delegated_results: List[Dict], db: Session) -> Dict:
-        # Simple verification: check all subtasks completed and no errors
+        """AI-powered verification of delegated task results."""
         failed = [r for r in delegated_results if r.get("status") == "FAILED"]
         pending = [r for r in delegated_results if r.get("status") != "COMPLETED"]
         if failed:
             return {"verified": False, "reason": f"{len(failed)} subtasks failed", "needs_correction": True}
         if pending:
             return {"verified": False, "reason": f"{len(pending)} pending", "needs_correction": False}
-        # Self-check via SelfCheckLoop
+
+        # AI quality verification
+        system = (
+            "You are a quality supervisor. Verify that all subtask results meet the requirements. "
+            "Check for: completeness, correctness, consistency between results, and overall quality. "
+            "Output JSON: {\"verified\": bool, \"quality_score\": int, \"issues\": [str], \"suggestions\": [str]}"
+        )
+        results_summary = json.dumps([{k: v for k, v in r.items() if k != "code"} for r in delegated_results[:10]])
+        ai_verify = _call_ai(
+            f"Verify these task results:\nTask: {task.title}\nRequest: {task.original_request}\nResults: {results_summary[:4000]}",
+            system=system, timeout=90,
+        )
+        if ai_verify:
+            try:
+                cleaned = ai_verify.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[1]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                result = json.loads(cleaned.strip())
+                result["ai_powered"] = True
+                return result
+            except:
+                pass
+
+        # Fallback: basic self-check
         checker = SelfCheckLoop()
-        eval = checker.evaluate(task, db)
-        if not eval["satisfied"]:
-            return {"verified": False, "reason": f"Self-check failed: {eval['checks']}", "needs_correction": True, "actions": checker.corrective_actions(eval)}
+        evaluation = checker.evaluate(task, db)
+        if not evaluation["satisfied"]:
+            return {"verified": False, "reason": f"Self-check failed", "needs_correction": True,
+                    "actions": checker.corrective_actions(evaluation)}
         return {"verified": True, "reason": "All subtasks completed and self-check passed"}
+
 
 # Singletons
 self_check = SelfCheckLoop()

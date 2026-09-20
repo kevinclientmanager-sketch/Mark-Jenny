@@ -62,9 +62,17 @@ Mark Jenny is a cloud-first autonomous AI operating platform with a Windows desk
 - **Intelligence:** cloud-first OpenAI-compatible runtime, optional Ollama/AirLLM local or hybrid runtime, memory, knowledge ingestion/search, knowledge graphs, skills and dependency validation, vision/OCR/YouTube analysis, and workflow orchestration.
 - **Governance:** JWT authentication, RBAC, per-user self-build session ownership, encrypted credential vault, rate limits, approval center, audit trail, snapshots, rollback, and readiness diagnostics.
 
-### Runtime readiness
+### Runtime readiness and premium agent operations
 
 Authenticated clients can call `GET /api/v1/features/readiness` to inspect cloud/local model configuration, AirLLM/CrewAI availability, self-build features, governance controls, and actionable setup recommendations. This makes deployment behavior explicit instead of silently pretending an optional provider is installed.
+
+Research-led additions now exposed through `/api/v1/features`:
+
+- `GET /catalog` — capability discovery for durable runs, trace/evaluation, policy guardrails, memory/knowledge, and computer/MCP use.
+- `POST /evaluate` — delivery preflight scoring relevance, completeness, safety, and actionability.
+- `POST /policy/preflight` — consistent human-approval decisions for sensitive, expensive, or irreversible actions.
+
+These additions follow current agent-platform patterns: durable state, observable runs, eval gates, least-privilege tool use, and explicit human approval for side effects. They are API-backed and audit logged, so chat, quick actions, self-build, and future agent surfaces can share the same controls.
 
 ## Super-Agent
 

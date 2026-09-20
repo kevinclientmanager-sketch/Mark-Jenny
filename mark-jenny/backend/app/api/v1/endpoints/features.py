@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 from app.db.base import get_db
@@ -40,6 +40,60 @@ async def capability_readiness(current_user: User = Depends(get_current_user)):
             *([] if crewai_installed else ["Install CrewAI only if Crew-based orchestration is required; native orchestration is already available."]),
         ],
     }
+
+
+# === Premium agent operations ===
+
+class EvaluationRequest(BaseModel):
+    task: str
+    response: str
+    criteria: List[str] = Field(default_factory=lambda: ["relevance", "completeness", "safety", "actionability"])
+
+
+class PolicyPreflightRequest(BaseModel):
+    action: str
+    target: Optional[str] = None
+    requires_approval: bool = False
+    estimated_cost_usd: float = 0.0
+
+
+@router.post("/evaluate")
+async def evaluate_agent_output(data: EvaluationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Deterministic preflight evaluation for agent responses before delivery."""
+    text = data.response.strip()
+    task_terms = {term.lower() for term in data.task.split() if len(term) > 3}
+    response_terms = {term.lower() for term in text.split() if len(term) > 3}
+    relevance = min(1.0, len(task_terms & response_terms) / max(1, min(len(task_terms), 8)))
+    completeness = min(1.0, len(text) / max(240, len(data.task) * 3))
+    safety = 0.0 if any(marker in text.lower() for marker in ["ignore all safety", "exfiltrate", "steal credentials"]) else 1.0
+    actionability = 1.0 if any(marker in text.lower() for marker in ["next", "step", "created", "implemented", "run", "use"]) else 0.5
+    scores = {"relevance": round(relevance, 2), "completeness": round(completeness, 2), "safety": safety, "actionability": actionability}
+    selected = [name for name in data.criteria if name in scores]
+    overall = round(sum(scores[name] for name in selected) / max(1, len(selected)), 2)
+    passed = overall >= 0.7 and safety == 1.0
+    await log_audit(db, user_id=current_user.id, action="AGENT_EVALUATE", resource_type="agent_run", resource_id="preflight", success=passed)
+    return {"passed": passed, "overall_score": overall, "scores": scores, "criteria": selected, "recommendations": ([] if passed else ["Improve task alignment, completeness, or actionable next steps before delivery."])}
+
+
+@router.post("/policy/preflight")
+async def policy_preflight(data: PolicyPreflightRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return a consistent approval decision before an agent invokes a side-effecting tool."""
+    sensitive = any(word in data.action.lower() for word in ["delete", "publish", "deploy", "send", "purchase", "credential", "push"])
+    approval_required = data.requires_approval or sensitive or data.estimated_cost_usd > 5
+    result = {"allowed": True, "approval_required": approval_required, "reason": "Human approval required for a sensitive or costly action." if approval_required else "Action is eligible for autonomous execution."}
+    await log_audit(db, user_id=current_user.id, action="POLICY_PREFLIGHT", resource_type="tool", resource_id=data.action[:120], success=True)
+    return result
+
+
+@router.get("/catalog")
+async def premium_capability_catalog(current_user: User = Depends(get_current_user)):
+    return {"capabilities": [
+        {"id": "durable_runs", "name": "Durable agent runs", "status": "available", "details": "Task runs, subtasks, resumable progress, and websocket updates."},
+        {"id": "trace_evaluation", "name": "Trace and evaluation preflight", "status": "available", "details": "Score relevance, completeness, safety, and actionability before delivery."},
+        {"id": "policy_guardrails", "name": "Policy guardrails", "status": "available", "details": "Approval preflight for sensitive, costly, and irreversible actions."},
+        {"id": "memory_knowledge", "name": "Persistent memory and knowledge", "status": "available", "details": "User-scoped memories, knowledge ingestion, and retrieval."},
+        {"id": "computer_mcp", "name": "Computer use and MCP", "status": "available", "details": "Browser/computer automation and external tool servers with audit logging."},
+    ]}
 
 
 # === MCP ===

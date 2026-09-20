@@ -45,7 +45,11 @@ export function PlusMenu({ onSelect, onFilePick, mode }: { onSelect: (id: PlusAc
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="inline-flex items-center justify-center h-9 w-9 rounded-full border bg-white dark:bg-zinc-900 hover:bg-zinc-100 text-xl">
+      <DropdownMenuTrigger
+        type="button"
+        aria-label="Add tools, files, and agent actions"
+        className="inline-flex items-center justify-center h-9 w-9 rounded-full border bg-white dark:bg-zinc-900 hover:bg-zinc-100 text-xl"
+      >
         +
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 max-h-80 overflow-auto p-1">

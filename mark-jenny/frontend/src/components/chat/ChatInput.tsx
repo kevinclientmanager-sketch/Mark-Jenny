@@ -5,6 +5,7 @@ import { plusPromptTemplates, PlusAction, PlusMenu } from "./PlusMenu";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/api/client";
 import { toast } from "@/components/ui/toast";
 
 interface LiveRecorderState {
@@ -322,14 +323,19 @@ export function ChatInput({
     synthRef.current = window.speechSynthesis;
   };
 
+  const authHeaders = (): HeadersInit => {
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("access_token") : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const processVoiceText = async (text: string) => {
     setVoiceState("thinking");
 
     try {
-      const res = await fetch("/api/v1/voice/synthesize", {
+      const params = new URLSearchParams({ text, voice: "default", speed: "1" });
+      const res = await fetch(`${API_BASE}/voice/synthesize?${params.toString()}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: "default" }),
+        headers: authHeaders(),
       });
       const data = await res.json();
 
@@ -402,10 +408,9 @@ export function ChatInput({
         reader.onloadend = () => {
           const base64 = (reader.result as string).split(",")[1];
           // Use the transcribe endpoint
-          fetch(`/api/v1/voice/transcribe?format=webm&language=en`, {
+          fetch(`${API_BASE}/voice/transcribe?${new URLSearchParams({ audio: base64, format: "webm", language: "en" }).toString()}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ audio: base64 }),
+            headers: authHeaders(),
           })
             .then((r) => r.json())
             .then((data) => {
@@ -603,7 +608,12 @@ export function ChatInput({
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder={
                   placeholder ||
                   (mode === "work"

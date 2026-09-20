@@ -1,4 +1,4 @@
-# MARK JENNY - Feature Manifest
+# MARK-IMTI - Feature Manifest
 
 This document tracks all features from the specification and their implementation status.
 

@@ -5,7 +5,7 @@ Inspired by GPT-6 Astra and Claude Mythos 5 capabilities.
 These workflows don't depend on any specific model. They use WHATEVER
 model the user has configured — OpenAI, Anthropic, Google, Ollama,
 AirLLM, LM Studio, vLLM, anything. The workflows provide the
-STRUCTURE, PLANNING, and DOMAIN EXPERTISE that makes Mark Jenny
+STRUCTURE, PLANNING, and DOMAIN EXPERTISE that makes Mark-Imti
 work like a frontier model, regardless of which model is behind it.
 
 Each workflow:

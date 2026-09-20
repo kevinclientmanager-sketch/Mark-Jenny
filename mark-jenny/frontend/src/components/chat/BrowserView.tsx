@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Globe, MessageSquare, ListChecks, Loader2, ExternalLink, RefreshCw,
   CheckCircle2, Circle, ArrowLeft, ArrowRight, Star, Share2, Download,
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/api/chat";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { browserApi } from "@/lib/api/browser";
 
 interface BrowserViewProps {
   messages: Message[];
@@ -72,6 +73,8 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
   const taskSteps = parseBrowserSteps(messages);
   const browserUrl = extractBrowserUrl(messages);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [browserSessionId, setBrowserSessionId] = useState<string | null>(null);
+  const [browserStatus, setBrowserStatus] = useState("Connecting to browser...");
 
   const [browserTabs, setBrowserTabs] = useState<BrowserTab[]>([
     { id: "1", title: "New Tab", url: "" }
@@ -83,6 +86,23 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
 
   const currentUrl = browserTabs.find((t) => t.id === activeBrowserTab)?.url || browserUrl || "";
 
+  useEffect(() => {
+    let cancelled = false;
+    browserApi.createSession(false)
+      .then(({ session_id }) => {
+        if (!cancelled) {
+          setBrowserSessionId(session_id);
+          setBrowserStatus("Browser automation ready");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBrowserStatus("Embedded preview mode");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const navigateTo = useCallback((url: string) => {
     let finalUrl = url;
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -90,7 +110,12 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
     }
     setBrowserTabs((prev) => prev.map((t) => t.id === activeBrowserTab ? { ...t, url: finalUrl, title: finalUrl.replace(/https?:\/\//, "").split("/")[0] } : t));
     setUrlInput(finalUrl);
-  }, [activeBrowserTab]);
+    if (browserSessionId) {
+      browserApi.navigate({ url: finalUrl, session_id: browserSessionId })
+        .then((result) => setBrowserStatus(result.success ? "Page loaded in automation session" : "Page opened in embedded preview"))
+        .catch(() => setBrowserStatus("Page opened in embedded preview"));
+    }
+  }, [activeBrowserTab, browserSessionId]);
 
   const addTab = useCallback(() => {
     const id = Date.now().toString();
@@ -218,14 +243,20 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
 
         {/* Browser toolbar */}
         <div className="h-10 shrink-0 bg-white dark:bg-zinc-900 border-b flex items-center gap-1 px-2">
+          <span className="text-[10px] text-zinc-400 truncate max-w-[150px]" title={browserStatus}>{browserStatus}</span>
           {/* Nav buttons */}
-          <button onClick={() => iframeRef.current?.contentWindow?.history.back()} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Back">
+          <button onClick={() => { try { iframeRef.current?.contentWindow?.history.back(); setBrowserStatus("Navigating back"); } catch { setBrowserStatus("Back navigation unavailable for this page"); } }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Back">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <button onClick={() => iframeRef.current?.contentWindow?.history.forward()} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Forward">
+          <button onClick={() => { try { iframeRef.current?.contentWindow?.history.forward(); setBrowserStatus("Navigating forward"); } catch { setBrowserStatus("Forward navigation unavailable for this page"); } }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Forward">
             <ArrowRight className="h-4 w-4" />
           </button>
-          <button onClick={() => iframeRef.current?.contentWindow?.location.reload()} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Refresh">
+          <button onClick={() => {
+            iframeRef.current?.contentWindow?.location.reload();
+            if (browserSessionId && currentUrl) {
+              browserApi.navigate({ url: currentUrl, session_id: browserSessionId }).catch(() => undefined);
+            }
+          }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </button>
 
@@ -251,7 +282,7 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
           <button onClick={() => setBookmarked(!bookmarked)} className={cn("p-1.5 rounded-md transition-colors", bookmarked ? "text-yellow-500" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200")} title="Bookmark this page">
             <Star className={cn("h-4 w-4", bookmarked && "fill-current")} />
           </button>
-          <button onClick={() => { navigator.clipboard.writeText(currentUrl); }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Copy link">
+          <button onClick={() => { if (currentUrl) navigator.clipboard.writeText(currentUrl).catch(() => undefined); }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Copy link">
             <Copy className="h-4 w-4" />
           </button>
           <button onClick={() => { if (currentUrl) window.open(currentUrl, "_blank"); }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Open in new window">

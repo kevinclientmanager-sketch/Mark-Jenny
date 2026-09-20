@@ -1,4 +1,4 @@
-# MARK JENNY - Hidden background launcher (no visible terminal windows)
+# MARK-IMTI - Hidden background launcher (no visible terminal windows)
 # Used by START-APP.bat. Launches backend + frontend with hidden windows
 # and writes their PIDs so they can be stopped with STOP-APP.bat.
 
@@ -41,7 +41,7 @@ $Frontend = Start-Process -FilePath "npm.cmd" `
 # Save PIDs for STOP-APP.bat
 "$($Backend.Id) $($Frontend.Id)" | Set-Content -Path $PidFile
 
-Write-Host "MARK JENNY started hidden."
+Write-Host "MARK-IMTI started hidden."
 Write-Host "Backend : http://localhost:8000  (PID $($Backend.Id))"
 Write-Host "Frontend: http://localhost:3000  (PID $($Frontend.Id))"
 Write-Host "Logs    : $Root\logs"

@@ -310,7 +310,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleSend = async (text: string, opts?: { think?: boolean }) => {
+  const handleSend = async (text: string, opts?: { think?: boolean; model?: string }) => {
     if (!activeChatId) return;
     setSending(true);
     try {
@@ -324,7 +324,7 @@ export default function ChatPage() {
         project: created ? { id: created.id, name: created.name } : undefined,
       });
       if (created) fetchProjects();
-      await chatApi.sendMessage(activeChatId, { content: text, project_id: targetProjectId });
+      await chatApi.sendMessage(activeChatId, { content: text, project_id: targetProjectId, think: opts?.think, model: opts?.model });
       await fetchMsgs(activeChatId);
       const res = await chatApi.list({ page: 1, page_size: 50 });
       setChats(res.chats);

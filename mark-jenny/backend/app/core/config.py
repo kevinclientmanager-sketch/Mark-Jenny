@@ -36,9 +36,16 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
 
-    # AI Models — defaults work out of the box, override via Settings UI
+    # AI Models — cloud-first by default, with an explicit local/offline mode.
     DEFAULT_MODEL_PROVIDER: str = "openai"
+    MODEL_RUNTIME_MODE: str = "cloud"  # cloud | local | hybrid
+    CLOUD_MODEL_BASE_URL: Optional[str] = None  # OpenAI-compatible /v1 endpoint
+    CLOUD_MODEL_API_KEY: Optional[str] = None
+    CLOUD_MODEL_NAME: str = "gpt-4o-mini"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen3:8b"
+    LOCAL_MODEL_BASE_URL: Optional[str] = None  # Optional remote LAN Ollama/OpenAI endpoint
+    LOCAL_MODEL_NAME: Optional[str] = None
 
     # Redis (optional, for multi-process/cloud)
     REDIS_URL: Optional[str] = None

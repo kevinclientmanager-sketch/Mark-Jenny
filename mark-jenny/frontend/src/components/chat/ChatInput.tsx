@@ -64,6 +64,7 @@ export function ChatInput({
       if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
       audioCtxRef.current?.close();
       mediaRef.current?.stream?.getTracks?.().forEach((t) => t.stop());
+      speechRecognitionRef.current?.stop?.();
       wsRef.current?.close();
       if (synthRef.current) synthRef.current.cancel();
       currentAudioRef.current?.pause();
@@ -351,6 +352,8 @@ export function ChatInput({
   };
 
   const speakWithBrowser = (text: string) => {
+    if (!text.trim()) return;
+    if (!synthRef.current && typeof window !== "undefined") synthRef.current = window.speechSynthesis;
     if (synthRef.current) {
       synthRef.current.cancel();
       const utterance = new SpeechSynthesisUtterance(text);

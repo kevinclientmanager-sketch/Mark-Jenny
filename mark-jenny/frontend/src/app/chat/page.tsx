@@ -310,7 +310,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleSend = async (text: string, opts?: { think?: boolean }) => {
+  const handleSend = async (text: string, opts?: { think?: boolean; model?: string }) => {
     if (!activeChatId) return;
     setSending(true);
     try {

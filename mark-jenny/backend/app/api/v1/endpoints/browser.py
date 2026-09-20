@@ -54,7 +54,7 @@ async def create_session(data: SessionRequest, current_user: User = Depends(get_
     sess = await browser_engine.create_session(current_user.id, persistent=data.persistent)
     return {
         "session_id": sess.session_id,
-        "persistent": persistent,
+        "persistent": sess.persistent,
         "created_at": sess.created_at.isoformat(),
         "capability": get_browser_capability(),
         "message": "Browser session created" if sess.page else "Fallback mode - playwright not available, will use httpx"

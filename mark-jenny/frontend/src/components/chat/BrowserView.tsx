@@ -245,10 +245,10 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
         <div className="h-10 shrink-0 bg-white dark:bg-zinc-900 border-b flex items-center gap-1 px-2">
           <span className="text-[10px] text-zinc-400 truncate max-w-[150px]" title={browserStatus}>{browserStatus}</span>
           {/* Nav buttons */}
-          <button onClick={() => iframeRef.current?.contentWindow?.history.back()} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Back">
+          <button onClick={() => { try { iframeRef.current?.contentWindow?.history.back(); setBrowserStatus("Navigating back"); } catch { setBrowserStatus("Back navigation unavailable for this page"); } }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Back">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <button onClick={() => iframeRef.current?.contentWindow?.history.forward()} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Forward">
+          <button onClick={() => { try { iframeRef.current?.contentWindow?.history.forward(); setBrowserStatus("Navigating forward"); } catch { setBrowserStatus("Forward navigation unavailable for this page"); } }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Forward">
             <ArrowRight className="h-4 w-4" />
           </button>
           <button onClick={() => {

@@ -74,6 +74,10 @@ Research-led additions now exposed through `/api/v1/features`:
 
 These additions follow current agent-platform patterns: durable state, observable runs, eval gates, least-privilege tool use, and explicit human approval for side effects. They are API-backed and audit logged, so chat, quick actions, self-build, and future agent surfaces can share the same controls.
 
+### Build workspace and sandboxes
+
+The `/build` workspace combines the build brief, target selection, live console, preview iframe, artifact inventory, integration, and rollback. It supports a web filesystem sandbox by default and exposes Docker mode only when the backend host reports a Docker runtime. `GET /api/v1/self-build/sandbox/status` reports the live capability, so the UI never presents an unavailable Docker option as working. Docker builds remain backend-host controlled and must be enabled with an appropriately isolated runtime; browser previews and web builds work without Docker.
+
 ## Super-Agent
 
 Self-Improvement (FailureMemory→skill patch), Self-Upgrade (Never-No gap→research→synthesize→validate→install), Mythos 1M context, and Hybrid Ollama/Cloud - see `docs/CONSOLIDATED_SUPER_MARK_SPEC.md`.

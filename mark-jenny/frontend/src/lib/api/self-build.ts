@@ -12,7 +12,8 @@ export interface BuildSession {
 }
 
 export const selfBuildApi = {
-  start: (user_request: string) => api.post<{ session_id: string; message: string }>("/self-build/start", { user_request }),
+  start: (user_request: string, sandbox_mode: "web" | "docker", target: "web" | "android" | "windows") => api.post<{ session_id: string; message: string }>("/self-build/start", { user_request, sandbox_mode, target }),
+  sandboxStatus: () => api.get<{ web: { available: boolean; description: string }; docker: { available: boolean; description: string; runtime_path?: string | null }; recommendation: "web" | "docker" }>("/self-build/sandbox/status"),
   sessions: () => api.get<{ sessions: BuildSession[]; stats: Record<string, unknown> }>("/self-build/sessions"),
   session: (id: string) => api.get<BuildSession>(`/self-build/${id}`),
   logs: (id: string) => api.get<{ logs: Array<{ timestamp?: string; level?: string; message?: string; [key: string]: unknown }> }>(`/self-build/${id}/logs`),

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import asyncio
 import json
+import shutil
 
 from app.db.base import get_db
 from app.core.security import get_current_user
@@ -24,9 +25,27 @@ def _owned_session(session_id: str, user_id: int):
 
 class StartBuildRequest(BaseModel):
     user_request: str
+    sandbox_mode: str = "web"
+    target: str = "web"
+
+    def normalized_mode(self) -> str:
+        return self.sandbox_mode if self.sandbox_mode in {"web", "docker"} else "web"
+
+    def normalized_target(self) -> str:
+        return self.target if self.target in {"web", "android", "windows"} else "web"
 
 class IntegrateRequest(BaseModel):
     session_id: str
+
+
+@router.get("/sandbox/status")
+async def sandbox_status(current_user: User = Depends(get_current_user)):
+    docker_path = shutil.which("docker")
+    return {
+        "web": {"available": True, "mode": "filesystem", "description": "Isolated per-session web workspace with live logs and artifacts."},
+        "docker": {"available": bool(docker_path), "mode": "docker" if docker_path else "unavailable", "description": "Container-backed builds require Docker on the backend host.", "runtime_path": docker_path},
+        "recommendation": "docker" if docker_path else "web",
+    }
 
 
 @router.get("/sessions")
@@ -35,7 +54,8 @@ async def list_sessions(current_user: User = Depends(get_current_user)):
 
 @router.post("/start")
 async def start_build(data: StartBuildRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    session_id = await self_builder.start_build(data.user_request)
+    request = f"{data.user_request}\nBuild target: {data.normalized_target()}\nSandbox mode: {data.normalized_mode()}"
+    session_id = await self_builder.start_build(request)
     _session_owners[session_id] = current_user.id
     await log_audit(db, user_id=current_user.id, action="SELF_BUILD_START", resource_type="build", resource_id=session_id, success=True)
     return {"session_id": session_id, "message": "Build started"}

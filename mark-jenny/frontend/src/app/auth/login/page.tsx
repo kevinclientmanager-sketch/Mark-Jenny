@@ -40,22 +40,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      await login("demo@markjenny.com", "demo123");
-      const dest = localStorage.getItem("onboarded") ? "/" : "/onboarding";
-      router.push(dest);
-      router.refresh();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Demo login failed";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -125,28 +109,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-500">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full mt-4"
-              onClick={handleDemoLogin}
-              disabled={loading}
-            >
-              <Bot className="mr-2 h-4 w-4" />
-              Demo Login
-            </Button>
-          </div>
 
           <p className="mt-4 text-center text-sm text-zinc-500">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}

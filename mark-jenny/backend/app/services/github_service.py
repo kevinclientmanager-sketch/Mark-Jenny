@@ -107,7 +107,7 @@ class GitHubService:
                 return base64.b64decode(r.json().get("content", "")).decode()
         return None
 
-    async def push_to_repo(self, local_path: str, repo_url: str, branch: str = "main", message: str = "Update from Mark Jenny") -> Dict:
+    async def push_to_repo(self, local_path: str, repo_url: str, branch: str = "main", message: str = "Update from Mark Imti") -> Dict:
         """Git add, commit, and push a local directory to a GitHub repo."""
         path = Path(local_path)
         if not path.exists():
@@ -135,7 +135,7 @@ class GitHubService:
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             await asyncio.create_subprocess_exec(
-                "git", "config", "user.name", "Mark Jenny", cwd=str(path),
+                "git", "config", "user.name", "Mark Imti", cwd=str(path),
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
 

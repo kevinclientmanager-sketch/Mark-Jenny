@@ -233,7 +233,7 @@ class GitHubPush(BaseModel):
     local_path: str
     repo_url: str
     branch: str = "main"
-    message: str = "Update from Mark Jenny"
+    message: str = "Update from Mark Imti"
 
 class VercelDeploy(BaseModel):
     project_path: str

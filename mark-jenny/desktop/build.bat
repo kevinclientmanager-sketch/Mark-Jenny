@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Mark Jenny Desktop - Build Script
+echo   Mark Imti Desktop - Build Script
 echo ========================================
 echo.
 
@@ -62,7 +62,7 @@ echo.
 echo ========================================
 echo   Build Complete!
 echo ========================================
-echo   Installer: desktop\dist\Mark Jenny Setup.exe
-echo   Portable:  desktop\dist\Mark Jenny.exe
+echo   Installer: desktop\dist\Mark Imti Setup.exe
+echo   Portable:  desktop\dist\Mark Imti.exe
 echo ========================================
 pause

@@ -53,7 +53,7 @@ const BUCKETS = ["Today", "Yesterday", "Previous 7 days", "Previous 30 days", "O
 
 const AGENTS = [
   { id: "chat", label: "Imti", icon: Bot },
-  { id: "work", label: "Mark", icon: Code2 },
+  { id: "work", label: "Imti Work", icon: Code2 },
   { id: "browse", label: "Browser", icon: Globe },
 ] as const;
 
@@ -346,7 +346,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
               className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold tracking-tight text-zinc-900 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
               title="Go to Dashboard"
             >
-              mark jenny
+              mark imti
             </button>
             <button
               onClick={() => setSearchOpen(true)}

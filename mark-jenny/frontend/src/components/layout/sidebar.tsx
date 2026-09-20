@@ -21,6 +21,9 @@ import {
   Pencil,
   Check,
   X,
+  BookOpen,
+  CalendarClock,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -51,6 +54,17 @@ const AGENTS = [
   { id: "chat", label: "Imti", icon: Bot },
   { id: "work", label: "Mark", icon: Code2 },
   { id: "browse", label: "Browser", icon: Globe },
+] as const;
+
+const WORKSPACE_NAV = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/projects", label: "Projects", icon: FilePlus2 },
+  { href: "/library", label: "Library", icon: BookOpen },
+  { href: "/scheduled", label: "Scheduled", icon: CalendarClock },
+  { href: "/skills", label: "Skills", icon: Sparkles },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
+  { href: "/memory", label: "Memory", icon: Brain },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 const PIN_KEY = "mark.pinnedChats";
@@ -422,8 +436,32 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
         </div>
       )}
 
-      {/* Below content — changes per agent toggle */}
+      {/* Shared workspace navigation stays identical across every page and agent mode. */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
+        {isOpen && (
+          <div className="mb-3 flex flex-col gap-0.5 border-b border-zinc-200 pb-3 dark:border-zinc-800">
+            {WORKSPACE_NAV.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  className={cn(
+                    "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm transition-colors",
+                    isActive(item.href)
+                      ? "bg-zinc-900/10 font-medium text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
+                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Below content — changes per agent toggle */}
         {chatData && isOpen && (
           chatData.mode === "chat" ? (
             <>
@@ -502,7 +540,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
                   {chatData.browseSessions.map((s) => (
                     <button
                       key={s.id}
-                      onClick={() => router.push("/browser")}
+                      onClick={() => chatData?.onModeChange("browse")}
                       className="group flex w-full items-center gap-2 rounded-lg p-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       <Globe className="h-3.5 w-3.5 shrink-0 text-blue-500" />
@@ -513,7 +551,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
                     </button>
                   ))}
                   <button
-                    onClick={() => router.push("/browser")}
+                    onClick={() => chatData?.onModeChange("browse")}
                     className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-blue-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   >
                     <Plus className="h-3.5 w-3.5" /> Open browser

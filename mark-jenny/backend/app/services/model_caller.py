@@ -40,6 +40,8 @@ class ModelCaller:
         temperature: float = 0.3,
         max_tokens: int = 4096,
         model_preference: str = "",
+        db=None,
+        user_id: Optional[int] = None,
     ) -> str:
         """
         Call whatever model is configured. Returns response text.
@@ -68,7 +70,7 @@ class ModelCaller:
             available_model = ""
             try:
                 async with httpx.AsyncClient(timeout=3) as client:
-                    tags_r = await client.get("http://localhost:11434/api/tags")
+                    tags_r = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
                 if tags_r.status_code == 200:
                     models = tags_r.json().get("models", [])
                     if models:
@@ -83,7 +85,7 @@ class ModelCaller:
             timeout = 600 if len(prompt) > 1000 else 300
             async with httpx.AsyncClient(timeout=timeout) as client:
                 r = await client.post(
-                    "http://localhost:11434/api/generate",
+                    f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/generate",
                     json={
                         "model": available_model,
                         "prompt": prompt,
@@ -137,12 +139,15 @@ class ModelCaller:
             from app.services.model_router import ModelRouter
             # ModelRouter handles the user's configured cloud models
             # It uses whatever API key and provider the user set up
-            router = ModelRouter(None, None)  # Will use configured model
-            # If ModelRouter has a call method, use it
-            if hasattr(router, 'call_model'):
-                result = await router.call_model(prompt, system, max_tokens, temperature)
-                if result:
-                    return result
+            if db is not None and user_id is not None:
+                router = ModelRouter(db, user_id)
+                # Provider adapters can be added to ModelRouter without
+                # changing the caller contract. Never construct it without a
+                # session: model selection is user-scoped.
+                if hasattr(router, 'call_model'):
+                    result = await router.call_model(prompt, system, max_tokens, temperature)
+                    if result:
+                        return result
         except Exception:
             pass
 

@@ -737,6 +737,7 @@ class AgentBrain:
 
     def __init__(self, db):
         self.db = db
+        self._user_id = None
 
     def think(self, goal: str, user_id: int = None, project_id: int = None) -> Dict[str, Any]:
         """
@@ -768,6 +769,10 @@ class AgentBrain:
         This is the REAL chat function that calls Ollama or cloud API.
         """
         import httpx
+
+        # Keep the authenticated identity available to provider routing. This is
+        # request-scoped because provider credentials belong to the current user.
+        self._user_id = user_id
 
         # Step 1: Get context from brain
         context = self.think(user_message, user_id, project_id)
@@ -994,7 +999,14 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         # 3. Try cloud APIs via ModelCaller (OpenAI, Anthropic, Google, etc.)
         try:
             from app.services.model_caller import ModelCaller
-            result = await ModelCaller.call(prompt, system, temperature=0.3, max_tokens=1024)
+            result = await ModelCaller.call(
+                    prompt,
+                    system,
+                    temperature=0.3,
+                    max_tokens=1024,
+                    db=self.db,
+                    user_id=getattr(self, "_user_id", None),
+                )
             if result:
                 return result
         except Exception:

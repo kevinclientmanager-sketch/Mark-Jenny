@@ -16,6 +16,32 @@ from app.utils.audit import log_audit
 router = APIRouter()
 
 
+@router.get("/readiness")
+async def capability_readiness(current_user: User = Depends(get_current_user)):
+    """Return actionable runtime readiness for premium agent capabilities."""
+    import importlib.util
+    from app.core.config import get_settings
+    settings = get_settings()
+    airllm_installed = importlib.util.find_spec("airllm") is not None
+    crewai_installed = importlib.util.find_spec("crewai") is not None
+    cloud_configured = bool(settings.CLOUD_MODEL_BASE_URL and settings.CLOUD_MODEL_API_KEY)
+    local_configured = bool(settings.OLLAMA_BASE_URL)
+    return {
+        "runtime_mode": settings.MODEL_RUNTIME_MODE,
+        "cloud_model": {"configured": cloud_configured, "model": settings.CLOUD_MODEL_NAME},
+        "local_model": {"configured": local_configured, "model": settings.OLLAMA_MODEL},
+        "multi_agent": {"available": True, "orchestrator": "agent_brain"},
+        "airllm": {"installed": airllm_installed, "enabled": settings.MODEL_RUNTIME_MODE in {"local", "hybrid"}},
+        "crewai": {"installed": crewai_installed, "available": crewai_installed},
+        "self_build": {"available": True, "self_evaluation": True, "rollback": True},
+        "governance": {"approvals": True, "audit_log": True, "rate_limits": True},
+        "recommendations": [
+            *([] if cloud_configured else ["Configure a cloud model endpoint for production runs."]),
+            *([] if crewai_installed else ["Install CrewAI only if Crew-based orchestration is required; native orchestration is already available."]),
+        ],
+    }
+
+
 # === MCP ===
 
 class MCPServerAdd(BaseModel):

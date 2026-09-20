@@ -50,6 +50,26 @@ npm run test  # vitest
 
 RBAC `USER/CREATOR/ADMIN` server-side (`app/api/v1/endpoints/admin.py:require_admin`), encrypted provider keys, rate limit 100/min (10/min auth), never expose secrets in logs.
 
+## Capability Overview
+
+Mark Jenny is a cloud-first autonomous AI operating platform with a Windows desktop wrapper and web application. It combines chat, project workspaces, browser/computer automation, scheduled jobs, knowledge and persistent memory, skills, voice, vision, MCP connectors, code generation, and governed execution.
+
+### Core capabilities
+
+- **Chat and agents:** Imti conversational chat, Mark work mode, Browser mode, multi-agent delegation, specialist routing, tool calling, streaming task updates, voice input/output, and contextual follow-up.
+- **Build and code:** project workspaces, files, code generation, self-build sessions, live build logs, sandbox files, QA analysis, test/build checks, integration, rollback, blueprints, snapshots, and GitHub/Vercel operations.
+- **Automation:** browser sessions, navigation/search/click/type/form automation, computer actions, scheduled tasks, task timelines, approvals, dry runs, self-healing, and audit logging.
+- **Intelligence:** cloud-first OpenAI-compatible runtime, optional Ollama/AirLLM local or hybrid runtime, memory, knowledge ingestion/search, knowledge graphs, skills and dependency validation, vision/OCR/YouTube analysis, and workflow orchestration.
+- **Governance:** JWT authentication, RBAC, per-user self-build session ownership, encrypted credential vault, rate limits, approval center, audit trail, snapshots, rollback, and readiness diagnostics.
+
+### Runtime readiness
+
+Authenticated clients can call `GET /api/v1/features/readiness` to inspect cloud/local model configuration, AirLLM/CrewAI availability, self-build features, governance controls, and actionable setup recommendations. This makes deployment behavior explicit instead of silently pretending an optional provider is installed.
+
 ## Super-Agent
 
-Self-Improvement (FailureMemory→skill patch), Self-Upgrade (Never-No gap→research→synthesize→validate→install), Mythos 1M context, Hybrid Ollama/Cloud - see `docs/CONSOLIDATED_SUPER_MARK_SPEC.md`.
+Self-Improvement (FailureMemory→skill patch), Self-Upgrade (Never-No gap→research→synthesize→validate→install), Mythos 1M context, and Hybrid Ollama/Cloud - see `docs/CONSOLIDATED_SUPER_MARK_SPEC.md`.
+
+## Research-informed roadmap
+
+Current agent platform guidance emphasizes durable state, specialist handoffs, guardrails and human approval, resumable runs, tracing/evaluation, computer use, and memory consolidation. Mark Jenny already includes the corresponding building blocks; the new readiness endpoint makes optional runtime capabilities observable so production deployments can safely enable only what is configured.

@@ -573,7 +573,7 @@ export function SettingsContent() {
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 border rounded-lg"><p className="text-sm font-medium">Status</p><Badge variant="outline" className="mt-1">{catFlag("browser", "enabled") ? "Configured" : "Disabled"}</Badge></div>
-                  <div className="p-3 border rounded-lg"><p className="text-sm font-medium">Capability check</p><Badge variant="outline" className="mt-1"><a href="/browser" className="flex items-center gap-1">Test <ExternalLink className="h-3 w-3" /></a></Badge></div>
+                  <div className="p-3 border rounded-lg"><p className="text-sm font-medium">Capability check</p><Badge variant="outline" className="mt-1"><a href="/chat?mode=browse" className="flex items-center gap-1">Test <ExternalLink className="h-3 w-3" /></a></Badge></div>
                 </div>
                 <SettingRow title="Library search" desc="Allow Mark to search uploaded files for answers." control={<Toggle checked={prefs.librarySearch !== false} onChange={(v) => updatePrefs("librarySearch", v)} />} />
               </CardContent>

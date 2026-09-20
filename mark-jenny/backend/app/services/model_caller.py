@@ -67,7 +67,8 @@ class ModelCaller:
             # Discover available model
             available_model = ""
             try:
-                tags_r = httpx.get("http://localhost:11434/api/tags", timeout=3)
+                async with httpx.AsyncClient(timeout=3) as client:
+                    tags_r = await client.get("http://localhost:11434/api/tags")
                 if tags_r.status_code == 200:
                     models = tags_r.json().get("models", [])
                     if models:

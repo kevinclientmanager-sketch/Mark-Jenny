@@ -366,6 +366,10 @@ async def send_message(
     chat = db.query(Chat).filter(Chat.id == chat_id, Chat.owner_id == current_user.id).first()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
+    if not data.content or not data.content.strip():
+        raise HTTPException(status_code=400, detail="Message content is required")
+    if len(data.content) > 100000:
+        raise HTTPException(status_code=400, detail="Message is too large (max 100KB)")
 
     # Attach project if provided
     if data.project_id:
@@ -390,8 +394,26 @@ async def send_message(
     db.commit()
     db.refresh(user_msg)
 
-    # Run autonomous pipeline (creates assistant reply + task if needed)
-    await _run_autonomous_pipeline(db, chat, user_msg, current_user)
+    # Run autonomous pipeline (creates assistant reply + task if needed).
+    # Keep the conversation usable even when an optional model/tool provider is offline.
+    try:
+        await _run_autonomous_pipeline(db, chat, user_msg, current_user)
+    except Exception as exc:
+        # Never leave a user message without an assistant turn. The provider error is
+        # intentionally not exposed; the UI receives a recoverable status instead.
+        db.rollback()
+        fallback = (
+            "I received your request, but the configured AI provider is temporarily "
+            "unavailable. Your message is saved. Start or reconnect a model provider "
+            "in Settings, then send it again."
+        )
+        db.add(Message(
+            chat_id=chat.id,
+            role=MessageRole.ASSISTANT,
+            content=fallback,
+            message_metadata={"status": "provider_unavailable", "retryable": True},
+        ))
+        db.commit()
 
     # Return the user message; frontend will refetch full thread
     return MessageResponse.model_validate(user_msg)

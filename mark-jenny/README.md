@@ -76,7 +76,7 @@ These additions follow current agent-platform patterns: durable state, observabl
 
 ### Build workspace and sandboxes
 
-The `/build` workspace combines the build brief, target selection, live console, preview iframe, artifact inventory, integration, and rollback. It supports a web filesystem sandbox by default and exposes Docker mode only when the backend host reports a Docker runtime. `GET /api/v1/self-build/sandbox/status` reports the live capability, so the UI never presents an unavailable Docker option as working. Docker builds remain backend-host controlled and must be enabled with an appropriately isolated runtime; browser previews and web builds work without Docker.
+The `/build` workspace combines the build brief, target selection, live console, preview iframe, artifact inventory, integration, and rollback. It currently uses the web filesystem sandbox: an isolated per-session workspace with live logs and artifacts. Docker execution is intentionally reserved for a future optional backend runtime and is not presented as an available feature until its isolation, provisioning, and lifecycle controls are implemented.
 
 ## Super-Agent
 

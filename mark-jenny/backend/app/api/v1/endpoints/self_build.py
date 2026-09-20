@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import asyncio
 import json
-import shutil
 
 from app.db.base import get_db
 from app.core.security import get_current_user
@@ -29,23 +28,13 @@ class StartBuildRequest(BaseModel):
     target: str = "web"
 
     def normalized_mode(self) -> str:
-        return self.sandbox_mode if self.sandbox_mode in {"web", "docker"} else "web"
+        return "web"
 
     def normalized_target(self) -> str:
         return self.target if self.target in {"web", "android", "windows"} else "web"
 
 class IntegrateRequest(BaseModel):
     session_id: str
-
-
-@router.get("/sandbox/status")
-async def sandbox_status(current_user: User = Depends(get_current_user)):
-    docker_path = shutil.which("docker")
-    return {
-        "web": {"available": True, "mode": "filesystem", "description": "Isolated per-session web workspace with live logs and artifacts."},
-        "docker": {"available": bool(docker_path), "mode": "docker" if docker_path else "unavailable", "description": "Container-backed builds require Docker on the backend host.", "runtime_path": docker_path},
-        "recommendation": "docker" if docker_path else "web",
-    }
 
 
 @router.get("/sessions")

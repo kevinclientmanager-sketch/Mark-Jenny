@@ -254,6 +254,11 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         project_id=chat.project_id,
         chat_history=chat_history,
     )
+    if not reply or not reply.strip():
+        reply = _generate_simple_reply(content, intent, recalled, skill_matches)
+        provider_status = "unavailable_fallback"
+    else:
+        provider_status = "model_response"
 
     # Build metadata
     meta = {
@@ -264,6 +269,8 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         "skill_gaps": skill_matches.get("gaps", []),
         "memory_recalled": [{"type": r["type"], "content": r["content"][:100], "score": round(r["score"], 2)} for r in recalled[:5]],
         "model_used": brain._call_llm.__module__ if hasattr(brain, '_call_llm') else "ollama",
+        "provider_status": provider_status,
+        "retryable": provider_status != "model_response",
     }
 
     # For task-like requests with high complexity — also create a tracked Task

@@ -44,7 +44,7 @@ for d in [SANDBOX_DIR, VERSIONS_DIR, LIVE_DIR, BUILD_LOGS_DIR]:
 
 class BuildStatus(str, Enum):
     IDLE = "idle"
-    PARSEING = "parsing"
+    PARSING = "parsing"
     BUILDING = "building"
     TESTING = "testing"
     REVIEWING = "reviewing"
@@ -182,7 +182,7 @@ class SelfBuildOrchestrator:
     async def _parse_request(self, session: BuildSession) -> List[BuildStep]:
         """Parse user's plain language into build steps."""
         self._log(session, "Jenny: Analyzing your request...")
-        session.status = BuildStatus.PARSEING
+        session.status = BuildStatus.PARSING
         await self._emit("status_changed", {"session_id": session.session_id, "status": "building"})
 
         request = session.user_request.lower()

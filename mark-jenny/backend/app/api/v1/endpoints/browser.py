@@ -21,6 +21,9 @@ class SearchRequest(BaseModel):
     engine: str = "duckduckgo"
     session_id: Optional[str] = None
 
+class SessionRequest(BaseModel):
+    persistent: bool = False
+
 class ClickRequest(BaseModel):
     selector: str
     session_id: str
@@ -47,8 +50,8 @@ async def get_capability(current_user: User = Depends(get_current_user)):
     }
 
 @router.post("/sessions", status_code=201)
-async def create_session(persistent: bool = False, current_user: User = Depends(get_current_user)):
-    sess = await browser_engine.create_session(current_user.id, persistent=persistent)
+async def create_session(data: SessionRequest, current_user: User = Depends(get_current_user)):
+    sess = await browser_engine.create_session(current_user.id, persistent=data.persistent)
     return {
         "session_id": sess.session_id,
         "persistent": persistent,

@@ -47,64 +47,92 @@ class ModelCaller:
         Call whatever model is configured. Returns response text.
         Tries every available provider — uses whichever responds.
         """
+        runtime_mode = (settings.MODEL_RUNTIME_MODE or "cloud").lower()
         responses = []
 
-        # 1. Try AirLLM (local 70B models)
-        try:
-            from app.services.airllm_engine import airllm_engine
-            if airllm_engine.is_available() and airllm_engine.current_model_id:
-                result = await airllm_engine.generate(
-                    prompt=prompt,
-                    system_prompt=system,
-                    max_new_tokens=max_tokens,
-                    temperature=temperature,
-                )
-                if result.get("success") and result.get("text"):
-                    return result["text"]
-        except Exception:
-            pass
-
-        # 2. Try Ollama (local)
-        try:
-            # Discover available model
-            available_model = ""
+        # Production is cloud-first. Local inference is opt-in so a deployed
+        # backend never stalls on localhost connection timeouts.
+        if runtime_mode in {"cloud", "hybrid"} and settings.CLOUD_MODEL_BASE_URL:
             try:
+                base_url = settings.CLOUD_MODEL_BASE_URL.rstrip("/")
+                endpoint = base_url if base_url.endswith("/chat/completions") else f"{base_url}/chat/completions"
+                headers = {"Content-Type": "application/json"}
+                if settings.CLOUD_MODEL_API_KEY:
+                    headers["Authorization"] = f"Bearer {settings.CLOUD_MODEL_API_KEY}"
+                messages = []
+                if system:
+                    messages.append({"role": "system", "content": system})
+                messages.append({"role": "user", "content": prompt})
+                async with httpx.AsyncClient(timeout=120) as client:
+                    cloud_response = await client.post(
+                        endpoint,
+                        headers=headers,
+                        json={
+                            "model": model_preference or settings.CLOUD_MODEL_NAME,
+                            "messages": messages,
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                        },
+                    )
+                if cloud_response.is_success:
+                    choices = cloud_response.json().get("choices", [])
+                    content = choices[0].get("message", {}).get("content", "") if choices else ""
+                    if isinstance(content, list):
+                        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+                    if content:
+                        return str(content).strip()
+            except Exception:
+                pass
+
+        # 1. Try AirLLM (local 70B models) only in local/hybrid mode.
+        if runtime_mode in {"local", "hybrid"}:
+            try:
+                from app.services.airllm_engine import airllm_engine
+                if airllm_engine.is_available() and airllm_engine.current_model_id:
+                    result = await airllm_engine.generate(
+                        prompt=prompt,
+                        system_prompt=system,
+                        max_new_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    if result.get("success") and result.get("text"):
+                        return result["text"]
+            except Exception:
+                pass
+
+        # 2. Try Ollama (local) when explicitly enabled.
+        if runtime_mode in {"local", "hybrid"}:
+            try:
+                available_model = ""
                 async with httpx.AsyncClient(timeout=3) as client:
                     tags_r = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
                 if tags_r.status_code == 200:
                     models = tags_r.json().get("models", [])
                     if models:
                         available_model = models[0].get("name", "")
+                available_model = available_model or model_preference or settings.OLLAMA_MODEL
+                timeout = 600 if len(prompt) > 1000 else 300
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    local_response = await client.post(
+                        f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/generate",
+                        json={
+                            "model": available_model,
+                            "prompt": prompt,
+                            "system": system or "You are a helpful assistant. Think step by step.",
+                            "stream": False,
+                        },
+                    )
+                if local_response.is_success:
+                    response = local_response.json().get("response", "")
+                    if response:
+                        return response.encode("utf-8", errors="ignore").decode("utf-8")
             except Exception:
                 pass
 
-            if not available_model:
-                available_model = model_preference or "qwen3-vl:8b"
-
-            # Use longer timeout for complex prompts on CPU
-            timeout = 600 if len(prompt) > 1000 else 300
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                r = await client.post(
-                    f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/generate",
-                    json={
-                        "model": available_model,
-                        "prompt": prompt,
-                        "system": system or "You are a helpful assistant. Think step by step.",
-                        "stream": False,
-                    },
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    response = data.get("response", "")
-                    if response:
-                        # Clean encoding issues (emojis, special chars)
-                        response = response.encode("utf-8", errors="ignore").decode("utf-8")
-                        return response
-        except Exception:
-            pass
-
-        # 3. Try any OpenAI-compatible API (LM Studio, vLLM, text-generation-webui, etc.)
-        openai_compatible_urls = [
+        # 3. Try local OpenAI-compatible APIs only in local/hybrid mode.
+        openai_compatible_urls = []
+        if runtime_mode in {"local", "hybrid"}:
+            openai_compatible_urls = [
             "http://localhost:1234/v1/chat/completions",  # LM Studio
             "http://localhost:5000/v1/chat/completions",   # vLLM
             "http://localhost:8080/v1/chat/completions",   # text-generation-webui

@@ -82,7 +82,7 @@ def test_files_upload(client):
     token = _register_and_login(client)
     h = _headers(token)
 
-    files = {"file": ("test.txt", b"hello mark imti", "text/plain")}
+    files = {"file": ("test.txt", b"hello Mark-Imti", "text/plain")}
     r = client.post("/api/v1/files/upload", files=files, headers=h)
     assert r.status_code in [200, 201]
     fid = r.json()["id"]

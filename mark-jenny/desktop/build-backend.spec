@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec for Mark Imti Backend
+# PyInstaller spec for Mark-Imti Backend
 
 import os
 import sys

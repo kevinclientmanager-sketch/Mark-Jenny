@@ -1,5 +1,5 @@
 """
-Voice Engine — Real-time voice conversation with Mark Imti agents.
+Voice Engine — Real-time voice conversation with Mark-Imti agents.
 
 Supports multiple STT/TTS backends:
 1. Browser Web Speech API (free, no API keys, works offline)

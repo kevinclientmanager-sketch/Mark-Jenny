@@ -20,7 +20,7 @@ const phases=[
   {phase:16, name:"QA/Packaging", files:["backend/tests/test_api.py","Dockerfile","frontend/src-tauri/tauri.conf.json","docs/CONSOLIDATED_SUPER_MARK_SPEC.md"]},
 ];
 let allPass=true;
-console.log("=== MARK IMTI FEATURE COMPLETENESS AUDIT ===\n");
+console.log("=== MARK-IMTI FEATURE COMPLETENESS AUDIT ===\n");
 for(const ph of phases){
   let pass=true;
   for(const f of ph.files){

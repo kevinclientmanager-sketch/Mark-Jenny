@@ -47,7 +47,7 @@ function startBackend() {
     const backendPath = getBackendPath();
     const args = getBackendArgs();
 
-    console.log('[Mark Imti] Starting backend:', backendPath);
+    console.log('[Mark-Imti] Starting backend:', backendPath);
 
     backendProcess = spawn(backendPath, args, {
       cwd: isDev ? path.join(__dirname, '..', 'backend') : path.dirname(backendPath),
@@ -201,7 +201,7 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    title: 'Mark Imti',
+    title: 'Mark-Imti',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -254,10 +254,10 @@ function createWindow() {
         { label: 'Documentation', click: () => shell.openExternal('https://markjenny.com/docs') },
         { label: 'Report Issue', click: () => shell.openExternal('https://github.com/markjenny/mark-jenny/issues') },
         { type: 'separator' },
-        { label: 'About Mark Imti', click: () => dialog.showMessageBox(mainWindow, {
+        { label: 'About Mark-Imti', click: () => dialog.showMessageBox(mainWindow, {
           type: 'info',
-          title: 'About Mark Imti',
-          message: 'Mark Imti v1.0.0',
+          title: 'About Mark-Imti',
+          message: 'Mark-Imti v1.0.0',
           detail: 'Autonomous AI Operating Platform\n\nA self-building, self-sufficient AI system that runs locally on your machine.',
         })},
       ],
@@ -299,17 +299,17 @@ if (!gotSingleInstanceLock) {
     // Start backend
     try {
       await startBackend();
-      console.log('[Mark Imti] Backend started');
+      console.log('[Mark-Imti] Backend started');
     } catch (err) {
-      console.error('[Mark Imti] Backend failed to start:', err);
-      dialog.showErrorBox('Backend Error', 'Failed to start Mark Imti backend. The app may not function correctly.');
+      console.error('[Mark-Imti] Backend failed to start:', err);
+      dialog.showErrorBox('Backend Error', 'Failed to start Mark-Imti backend. The app may not function correctly.');
     }
 
     // Create tray
     tray = new Tray(nativeImage.createEmpty());
-    tray.setToolTip('Mark Imti');
+    tray.setToolTip('Mark-Imti');
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Show Mark Imti', click: () => mainWindow?.show() },
+      { label: 'Show Mark-Imti', click: () => mainWindow?.show() },
       { label: 'Quit', click: () => app.quit() },
     ]));
   });

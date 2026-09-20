@@ -1,5 +1,5 @@
-# Mark Imti — Advanced Intelligence Build Plan
-## Making Mark Imti Agents Work Like GPT-6 Astra & Claude Mythos 5
+# Mark-Imti — Advanced Intelligence Build Plan
+## Making Mark-Imti Agents Work Like GPT-6 Astra & Claude Mythos 5
 
 ---
 

@@ -1,6 +1,6 @@
 @echo off
-title MARK IMTI - Launcher
-REM MARK IMTI - ONE-CLICK START (hidden background)
+title MARK-IMTI - Launcher
+REM MARK-IMTI - ONE-CLICK START (hidden background)
 REM Launches backend + frontend with no visible terminal windows.
 
 cd /d "%~dp0"

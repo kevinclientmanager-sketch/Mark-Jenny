@@ -6,14 +6,14 @@
     "distDir": "../.next"
   },
   "package": {
-    "productName": "MARK IMTI",
+    "productName": "MARK-IMTI",
     "version": "0.1.0"
   },
   "tauri": {
     "bundle": {
       "active": true,
       "category": "Productivity",
-      "copyright": "© MARK IMTI",
+      "copyright": "© MARK-IMTI",
       "deb": { "depends": [] },
       "externalBin": [],
       "icon": ["icons/icon.png"],
@@ -21,7 +21,7 @@
       "longDescription": "Autonomous AI Operating Platform - Windows 10/11",
       "macOS": { "entitlements": null, "exceptionDomain": "", "frameworks": [], "providerShortName": null, "signingIdentity": null },
       "resources": [],
-      "shortDescription": "MARK IMTI",
+      "shortDescription": "MARK-IMTI",
       "targets": ["msi", "nsis"],
       "windows": {
         "certificateThumbprint": null,
@@ -42,7 +42,7 @@
         "fullscreen": false,
         "height": 900,
         "resizable": true,
-        "title": "MARK IMTI",
+        "title": "MARK-IMTI",
         "width": 1400,
         "systemTray": { "iconPath": "icons/icon.png", "iconAsTemplate": true }
       }

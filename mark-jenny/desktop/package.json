@@ -1,9 +1,9 @@
 {
   "name": "mark-imti",
   "version": "1.0.0",
-  "description": "Mark Imti — Autonomous AI Operating Platform",
+  "description": "Mark-Imti — Autonomous AI Operating Platform",
   "main": "main.js",
-  "author": "Mark Imti Team",
+  "author": "Mark-Imti Team",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.markjenny.desktop",
-    "productName": "Mark Imti",
+    "productName": "Mark-Imti",
     "directories": {
       "output": "dist"
     },
@@ -42,7 +42,7 @@
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Mark Imti",
+      "shortcutName": "Mark-Imti",
       "include": "installer.nsh"
     }
   },

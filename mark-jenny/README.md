@@ -1,4 +1,4 @@
-# MARK IMTI — Autonomous AI Operating Platform
+# MARK-IMTI — Autonomous AI Operating Platform
 
 Production-ready autonomous AI agent platform: Windows desktop + Web, shared business logic, 23 routes, 34 tables.
 
@@ -52,7 +52,7 @@ RBAC `USER/CREATOR/ADMIN` server-side (`app/api/v1/endpoints/admin.py:require_ad
 
 ## Capability Overview
 
-Mark Imti is a cloud-first autonomous AI operating platform with a Windows desktop wrapper and web application. It combines chat, project workspaces, browser/computer automation, scheduled jobs, knowledge and persistent memory, skills, voice, vision, MCP connectors, code generation, and governed execution.
+Mark-Imti is a cloud-first autonomous AI operating platform with a Windows desktop wrapper and web application. It combines chat, project workspaces, browser/computer automation, scheduled jobs, knowledge and persistent memory, skills, voice, vision, MCP connectors, code generation, and governed execution.
 
 ### Core capabilities
 
@@ -84,4 +84,4 @@ Self-Improvement (FailureMemory→skill patch), Self-Upgrade (Never-No gap→res
 
 ## Research-informed roadmap
 
-Current agent platform guidance emphasizes durable state, specialist handoffs, guardrails and human approval, resumable runs, tracing/evaluation, computer use, and memory consolidation. Mark Imti already includes the corresponding building blocks; the new readiness endpoint makes optional runtime capabilities observable so production deployments can safely enable only what is configured.
+Current agent platform guidance emphasizes durable state, specialist handoffs, guardrails and human approval, resumable runs, tracing/evaluation, computer use, and memory consolidation. Mark-Imti already includes the corresponding building blocks; the new readiness endpoint makes optional runtime capabilities observable so production deployments can safely enable only what is configured.

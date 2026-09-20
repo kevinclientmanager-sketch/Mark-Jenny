@@ -18,7 +18,7 @@
 - Offline: SQLite + local files/memory/skills/scheduling work without internet; sync on reconnect (no silent overwrite)
 
 ## Uninstall
-- Control Panel → Apps → MARK IMTI → Uninstall (removes app, keeps `%APPDATA%/MarkJenny` unless checked)
+- Control Panel → Apps → MARK-IMTI → Uninstall (removes app, keeps `%APPDATA%/MarkJenny` unless checked)
 - Or `Uninstall` shortcut in Start Menu
 
 ## Build from source (Windows)

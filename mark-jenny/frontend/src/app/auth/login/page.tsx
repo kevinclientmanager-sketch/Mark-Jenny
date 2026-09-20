@@ -47,7 +47,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
             <Bot className="h-7 w-7 text-white" />
           </div>
-          <CardTitle className="text-2xl">mark imti</CardTitle>
+          <CardTitle className="text-2xl">Mark-Imti</CardTitle>
           <CardDescription>
             {isLogin ? "Sign in to your account" : "Create a new account"}
           </CardDescription>

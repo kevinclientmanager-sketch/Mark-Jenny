@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Bot,
   Code2,
+  Hammer,
   Menu,
   PanelLeftClose,
   Sparkles,
@@ -59,6 +60,7 @@ const AGENTS = [
 const WORKSPACE_NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FilePlus2 },
+  { href: "/build", label: "Build workspace", icon: Hammer },
   { href: "/library", label: "Library", icon: BookOpen },
   { href: "/scheduled", label: "Scheduled", icon: CalendarClock },
   { href: "/skills", label: "Skills", icon: Sparkles },

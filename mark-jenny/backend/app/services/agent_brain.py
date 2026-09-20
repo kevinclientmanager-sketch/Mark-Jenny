@@ -763,7 +763,8 @@ class AgentBrain:
         }
 
     async def chat(self, user_message: str, user_id: int = None,
-                   project_id: int = None, chat_history: list = None) -> str:
+                   project_id: int = None, chat_history: list = None,
+                   think: bool = False, model: str = None) -> str:
         """
         Generate an actual AI response by calling the LLM.
         This is the REAL chat function that calls Ollama or cloud API.
@@ -808,6 +809,12 @@ class AgentBrain:
             history_block = "\n".join([f"{m['role']}: {m['content'][:300]}" for m in recent])
 
         # Full prompt
+        reasoning_instruction = (
+            "Work through the request carefully in explicit stages, verify assumptions, and include an actionable execution plan before acting."
+            if think else
+            "Answer directly while still checking assumptions and identifying the next concrete action."
+        )
+        model_instruction = f"Preferred model: {model}." if model else "Use the best available configured model."
         user_prompt = f"""Context:
 {context_block}
 
@@ -817,7 +824,11 @@ User message: {user_message}
 
 Intent detected: {intent['intent']} (confidence: {intent['confidence']:.0%})
 
-Respond helpfully, directly, and specifically. If the user wants to build something, outline what you'll do. If they ask a question, answer it. If they need a task done, explain your approach. Be concise but thorough."""
+{model_instruction}
+
+{reasoning_instruction}
+
+Respond helpfully, directly, and specifically. If the user wants to build something, outline what you'll do and then carry it through using the available tools. If they ask a question, answer it. If they need a task done, explain your approach and produce concrete outputs. Be concise but thorough."""
 
         # Step 3: Call the LLM
         response = await self._call_llm(system_prompt, user_prompt)

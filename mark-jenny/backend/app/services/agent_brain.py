@@ -774,6 +774,13 @@ class AgentBrain:
         # request-scoped because provider credentials belong to the current user.
         self._user_id = user_id
 
+        # Enforce Core Laws before memory retrieval, model calls, or tool routing.
+        # This makes Imti's safety configuration an actual runtime boundary,
+        # rather than model-only guidance.
+        blocked_reason = self._law_block_reason(user_message)
+        if blocked_reason:
+            return f"{blocked_reason} No model or external tool was called."
+
         # Step 1: Get context from brain
         context = self.think(user_message, user_id, project_id)
         intent = context["intent"]
@@ -880,6 +887,43 @@ Violating a Core Law is the highest-severity failure. Never attempt it.
 """
         except Exception:
             return "\n## CORE LAWS\nError loading laws. Default safety principles apply.\n"
+
+    def _active_core_laws(self) -> list[dict[str, Any]]:
+        """Return active law codes for deterministic runtime enforcement.
+
+        Prompt instructions improve model behavior, but they are not a security
+        boundary. Imti therefore evaluates high-risk requests before any model
+        or tool call is made.
+        """
+        from pathlib import Path
+        import os
+
+        laws_file = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "core_laws" / "laws.json"
+        try:
+            with laws_file.open(encoding="utf-8") as handle:
+                payload = json.load(handle)
+            return [law for law in payload.get("laws", []) if law.get("enabled", True)]
+        except (OSError, ValueError, TypeError):
+            return []
+
+    def _law_block_reason(self, user_message: str) -> Optional[str]:
+        """Return a user-safe reason when a configured law blocks a request."""
+        text = (user_message or "").lower()
+        for law in self._active_core_laws():
+            code = str(law.get("code", "")).upper()
+            if "BLOCK: DESTRUCTIVE_OPERATIONS" in code and any(
+                word in text for word in ("delete", "remove", "destroy", "drop database", "wipe")
+            ):
+                return "Core Law blocked destructive operations."
+            if "BLOCK: EXTERNAL_ACTIONS" in code and any(
+                word in text for word in ("send email", "publish", "deploy", "post publicly", "push to")
+            ):
+                return "Core Law blocked an external action until it is explicitly approved."
+            if "REQUIRE: USER_CONFIRMATION" in code and any(
+                word in text for word in ("deploy", "publish", "send email", "charge", "purchase")
+            ):
+                return "Core Law requires explicit user confirmation before this action."
+        return None
 
     def _build_system_prompt(self) -> str:
         """Build the Mythos-level system prompt for the LLM.

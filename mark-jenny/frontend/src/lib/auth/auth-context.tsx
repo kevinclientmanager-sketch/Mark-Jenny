@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchAccessToken = async (email: string, password: string) => {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);

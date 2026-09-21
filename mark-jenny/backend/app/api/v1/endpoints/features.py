@@ -16,6 +16,73 @@ from app.utils.audit import log_audit
 router = APIRouter()
 
 
+# This is the authoritative capability map for the existing platform. Each entry
+# points at the subsystem that owns the behavior so future upgrades extend rather
+# than duplicate the current runtime.
+CAPABILITY_AUDIT = [
+    (1, "Autonomous workflow execution", "PARTIALLY IMPLEMENTED", "tasks, agent_controller, execution"),
+    (2, "Always-on / persistent operation", "PARTIALLY IMPLEMENTED", "schedules, websocket"),
+    (3, "Multi-agent orchestration", "IMPLEMENTED", "advanced_autonomy, agent_controller"),
+    (4, "Tool and service integration", "IMPLEMENTED", "mcp, integrations, connectors"),
+    (5, "Intelligent model and tool routing", "IMPLEMENTED", "model_router, agent_controller"),
+    (6, "Failure recovery and task resumption", "IMPLEMENTED", "advanced_autonomy, task_runs"),
+    (7, "Autonomous coding and debugging", "PARTIALLY IMPLEMENTED", "code_execution, qa_engine"),
+    (8, "Terminal and system access", "PARTIALLY IMPLEMENTED", "computer, execution"),
+    (9, "Model flexibility / BYOM", "IMPLEMENTED", "model_router, models"),
+    (10, "Cross-platform synchronization", "PARTIALLY IMPLEMENTED", "projects, files, websocket"),
+    (11, "Persistent working memory and task state", "IMPLEMENTED", "tasks, memories, checkpoints"),
+    (12, "Skill learning and workflow recording", "PARTIALLY IMPLEMENTED", "skills, advanced_autonomy"),
+    (13, "Self-correction and strategy refinement", "IMPLEMENTED", "self_check, error_recovery"),
+    (14, "Goal-oriented planning and decomposition", "IMPLEMENTED", "agent_controller, agent_brain"),
+    (15, "Performance benchmarking and optimization", "PARTIALLY IMPLEMENTED", "qa_engine, audit"),
+    (16, "Continuous evaluation and regression testing", "PARTIALLY IMPLEMENTED", "qa_engine"),
+    (17, "Graduated autonomy", "IMPLEMENTED", "approval_manager, task.autonomy_level"),
+    (18, "Long-term episodic memory", "IMPLEMENTED", "knowledge.Memory"),
+    (19, "Proactive context awareness", "PARTIALLY IMPLEMENTED", "memory, schedules"),
+    (20, "Knowledge retrieval and grounded research", "IMPLEMENTED", "knowledge, agent_brain"),
+    (21, "Multimodal environment interaction", "PARTIALLY IMPLEMENTED", "vision, computer, voice"),
+    (22, "Human-in-the-loop intent calibration", "PARTIALLY IMPLEMENTED", "approvals, chat"),
+    (23, "Cross-agent reasoning and verification", "IMPLEMENTED", "supervisor, self_check"),
+    (24, "Self-healing infrastructure", "PARTIALLY IMPLEMENTED", "error_recovery, health"),
+    (25, "Predictive maintenance", "PARTIALLY IMPLEMENTED", "readiness, audit"),
+    (26, "Real-time observability and tracing", "IMPLEMENTED", "audit, websocket, task_runs"),
+    (27, "Intelligent failure diagnosis", "IMPLEMENTED", "error_recovery"),
+    (28, "Security sandboxing", "PARTIALLY IMPLEMENTED", "code_execution, execution"),
+    (29, "Automated security auditing", "IMPLEMENTED", "cybersecurity_agent, qa_engine"),
+    (30, "Identity and permission management", "IMPLEMENTED", "auth, users, approvals"),
+    (31, "Dynamic guardrails", "IMPLEMENTED", "policy_preflight, approvals"),
+    (32, "Pre-execution risk assessment", "IMPLEMENTED", "policy_preflight"),
+    (33, "Human approval gates", "IMPLEMENTED", "approval model and endpoints"),
+    (34, "Dynamic resource scaling and cost control", "PARTIALLY IMPLEMENTED", "model_router, cost estimation"),
+    (35, "Collaborative resource negotiation", "PARTIALLY IMPLEMENTED", "agent_controller"),
+    (36, "Budget-aware planning", "IMPLEMENTED", "model_router, estimate_cost"),
+    (37, "Flexible deployment and ownership", "PARTIALLY IMPLEMENTED", "github, vercel deployment"),
+    (38, "Local and cloud hybrid execution", "IMPLEMENTED", "model_router, execution"),
+    (39, "Persistent cloud workspaces", "PARTIALLY IMPLEMENTED", "projects, project_workspace"),
+    (40, "Environment portability", "PARTIALLY IMPLEMENTED", "projects, files, skills"),
+    (41, "Proactive task discovery", "PARTIALLY IMPLEMENTED", "schedules, notifications"),
+    (42, "Event-driven autonomous execution", "PARTIALLY IMPLEMENTED", "schedules, websocket"),
+    (43, "Dependency and environment awareness", "PARTIALLY IMPLEMENTED", "projects, tasks, skills"),
+    (44, "Adaptive strategy selection", "IMPLEMENTED", "model_router, error_recovery"),
+    (45, "Autonomous research and synthesis", "IMPLEMENTED", "agent_brain, research tools"),
+    (46, "Source verification and evidence tracking", "PARTIALLY IMPLEMENTED", "knowledge, audit"),
+    (47, "Long-running project management", "IMPLEMENTED", "projects, tasks, schedules"),
+    (48, "Autonomous delegation and escalation", "IMPLEMENTED", "delegation, approvals, supervisor"),
+]
+
+
+@router.get("/audit")
+async def capability_audit(current_user: User = Depends(get_current_user)):
+    """Return the inspected 48-feature map and current implementation strength."""
+    counts = {}
+    capabilities = []
+    for number, name, status, owner in CAPABILITY_AUDIT:
+        counts[status] = counts.get(status, 0) + 1
+        capabilities.append({"number": number, "name": name, "status": status, "owner": owner})
+    return {"total": len(capabilities), "counts": counts, "capabilities": capabilities}
+
+
+
 @router.get("/readiness")
 async def capability_readiness(current_user: User = Depends(get_current_user)):
     """Return actionable runtime readiness for premium agent capabilities."""
@@ -80,7 +147,12 @@ async def policy_preflight(data: PolicyPreflightRequest, current_user: User = De
     """Return a consistent approval decision before an agent invokes a side-effecting tool."""
     sensitive = any(word in data.action.lower() for word in ["delete", "publish", "deploy", "send", "purchase", "credential", "push"])
     approval_required = data.requires_approval or sensitive or data.estimated_cost_usd > 5
-    result = {"allowed": True, "approval_required": approval_required, "reason": "Human approval required for a sensitive or costly action." if approval_required else "Action is eligible for autonomous execution."}
+    result = {
+        "allowed": not approval_required,
+        "approval_required": approval_required,
+        "risk_level": "high" if sensitive or data.estimated_cost_usd > 5 else "low",
+        "reason": "Human approval required for a sensitive or costly action." if approval_required else "Action is eligible for autonomous execution.",
+    }
     await log_audit(db, user_id=current_user.id, action="POLICY_PREFLIGHT", resource_type="tool", resource_id=data.action[:120], success=True)
     return result
 

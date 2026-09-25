@@ -145,7 +145,7 @@ export function MessageList({
           const editing = editingId === m.id;
 
           return (
-            <div key={m.id} className={cn("flex items-start gap-3", isUser ? "justify-end" : "justify-start")}>
+            <div key={m.id} className={cn("flex gap-3", isUser ? "justify-end items-center" : "justify-start items-start")}>
               {!isUser && (
                 <div className="h-8 w-8 shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
                   <Bot className="h-4 w-4 text-white" />
@@ -270,8 +270,8 @@ export function MessageList({
                 </div>
               </div>
               {isUser && (
-                <div className="h-9 w-9 shrink-0 self-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-sm shadow-sky-500/30">
-                  <User className="h-5 w-5 text-white" />
+                <div className="h-10 w-10 shrink-0 self-center rounded-full bg-gradient-to-br from-green-400 via-teal-500 to-sky-600 flex items-center justify-center shadow-md shadow-teal-500/30 ring-2 ring-white/60 dark:ring-white/10">
+                  <User className="h-5 w-5 text-white" strokeWidth={2.5} />
                 </div>
               )}
             </div>

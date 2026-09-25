@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "mark jenny",
+  title: "Mark-Imti",
   description: "Autonomous AI Operating Platform",
 };
 
@@ -27,3 +27,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('markjenny', {
+contextBridge.exposeInMainWorld('markimti', {
   // App info
   getUserData: () => ipcRenderer.invoke('get-user-data'),
   getBackendStatus: () => ipcRenderer.invoke('get-backend-status'),

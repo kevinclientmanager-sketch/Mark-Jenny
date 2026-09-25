@@ -64,7 +64,8 @@ const handleConnect = async ()=>{
     setConnecting(true);
     try {
       let creds: any = {};
-      try { creds = connectCreds ? JSON.parse(connectCreds) : { api_key: "demo" }; } catch { creds = { api_key: connectCreds }; }
+      if (!connectCreds.trim()) { toast.add({ title: "Credentials required", description: "Enter API key, token, or JSON credentials to connect.", type: "error" }); setConnecting(false); return; }
+      try { creds = JSON.parse(connectCreds); } catch { creds = { api_key: connectCreds.trim() }; }
       await projectWorkspaceApi.connectConnector({ connector_id: showConnect.id, project_id: connectProject?Number(connectProject):undefined, auth_type: connectAuth as any, credentials: creds });
       setShowConnect(null); setConnectCreds(""); fetchAll();
       toast.add({ title: "Connected", description: showConnect.display_name, type: "success" });
@@ -254,4 +255,6 @@ const handleConnect = async ()=>{
     </ProtectedLayout>
   );
 }
+
+
 

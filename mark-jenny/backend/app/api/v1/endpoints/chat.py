@@ -30,6 +30,8 @@ class MessageCreate(BaseModel):
     project_id: Optional[int] = None
     attachments: Optional[List[int]] = None  # file ids
     connectors: Optional[List[int]] = None
+    think: bool = False
+    model: Optional[str] = None
 
 class MessageUpdate(BaseModel):
     content: str
@@ -220,7 +222,7 @@ async def delete_message(
     await log_audit(db, user_id=current_user.id, action="MESSAGE_DELETE", resource_type="message", resource_id=str(message_id), success=True)
     return {"message": "Message deleted"}
 
-async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, current_user: User):
+async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, current_user: User, *, think: bool = False, model: Optional[str] = None):
     """Intelligent pipeline: uses Agent Brain (intent + memory + skills) to generate real AI responses."""
     from app.services.agent_brain import AgentBrain
 
@@ -253,7 +255,14 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         user_id=current_user.id,
         project_id=chat.project_id,
         chat_history=chat_history,
+        think=think,
+        model=model,
     )
+    if not reply or not reply.strip():
+        reply = _generate_simple_reply(content, intent, recalled, skill_matches)
+        provider_status = "unavailable_fallback"
+    else:
+        provider_status = "model_response"
 
     # Build metadata
     meta = {
@@ -264,6 +273,10 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         "skill_gaps": skill_matches.get("gaps", []),
         "memory_recalled": [{"type": r["type"], "content": r["content"][:100], "score": round(r["score"], 2)} for r in recalled[:5]],
         "model_used": brain._call_llm.__module__ if hasattr(brain, '_call_llm') else "ollama",
+        "provider_status": provider_status,
+        "retryable": provider_status != "model_response",
+        "think_requested": think,
+        "requested_model": model,
     }
 
     # For task-like requests with high complexity — also create a tracked Task
@@ -366,6 +379,10 @@ async def send_message(
     chat = db.query(Chat).filter(Chat.id == chat_id, Chat.owner_id == current_user.id).first()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
+    if not data.content or not data.content.strip():
+        raise HTTPException(status_code=400, detail="Message content is required")
+    if len(data.content) > 100000:
+        raise HTTPException(status_code=400, detail="Message is too large (max 100KB)")
 
     # Attach project if provided
     if data.project_id:
@@ -390,8 +407,26 @@ async def send_message(
     db.commit()
     db.refresh(user_msg)
 
-    # Run autonomous pipeline (creates assistant reply + task if needed)
-    await _run_autonomous_pipeline(db, chat, user_msg, current_user)
+    # Run autonomous pipeline (creates assistant reply + task if needed).
+    # Keep the conversation usable even when an optional model/tool provider is offline.
+    try:
+        await _run_autonomous_pipeline(db, chat, user_msg, current_user, think=data.think, model=data.model)
+    except Exception as exc:
+        # Never leave a user message without an assistant turn. The provider error is
+        # intentionally not exposed; the UI receives a recoverable status instead.
+        db.rollback()
+        fallback = (
+            "I received your request, but the configured AI provider is temporarily "
+            "unavailable. Your message is saved. Start or reconnect a model provider "
+            "in Settings, then send it again."
+        )
+        db.add(Message(
+            chat_id=chat.id,
+            role=MessageRole.ASSISTANT,
+            content=fallback,
+            message_metadata={"status": "provider_unavailable", "retryable": True},
+        ))
+        db.commit()
 
     # Return the user message; frontend will refetch full thread
     return MessageResponse.model_validate(user_msg)

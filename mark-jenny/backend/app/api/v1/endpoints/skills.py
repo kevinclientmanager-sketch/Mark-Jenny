@@ -161,7 +161,7 @@ OFFICIAL_REGISTRY = [
     _skill("self-improving-agent", "Self-Improving Agent", "Curate successes into reusable memory and instructions over time", ["memory","code"], ["memory:read","memory:write"]),
     _skill("ml-deployer", "ML Deployer", "Model serving, endpoints, and monitoring", ["code","shell"], ["code:python","network:http"]),
 
-    # ---------- MarkJenny Plugins ----------
+    # ---------- markimti Plugins ----------
     _skill("playwright-cli", "PlaywrightCLI", "Full browser automation: navigate, click, fill, screenshot, scrape, test — CLI-grade control of headless and headed browsers", ["browser_navigate","browser_click","browser_type","browser_screenshot","browser_extract","browser_wait","code"], ["browser:automate","file:write","network:http"]),
     _skill("supabase", "Supabase", "Supabase platform integration: project management, database queries, auth flows, edge functions, storage buckets, and real-time subscriptions via REST API", ["code","sql","http_request","file_read","file_write"], ["network:http","db:sql","file:read","file:write"]),
     _skill("strix-security", "StrixSecurity", "Security scanning suite: reconnaissance, port scanning, vulnerability detection, dependency auditing, secret-leak checks, and hardened-config analysis", ["web_search","code","shell","analysis","browser"], ["network:search","file:read","file:write"]),

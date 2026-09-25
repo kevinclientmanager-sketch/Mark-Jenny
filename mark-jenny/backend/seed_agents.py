@@ -1,4 +1,4 @@
-"""Seed Mark and Jenny agents with relevant skills from the registry."""
+"""Seed Mark and Imti agents with relevant skills from the registry."""
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -7,7 +7,7 @@ from app.db.base import SessionLocal
 from app.models.agent import Agent, AgentType
 from app.models.skill import Skill, SkillStatus
 
-# Mark = coding/dev focus, Jenny = design/UI focus
+# Mark = coding/dev focus, Imti = design/UI focus
 AGENT_DEFINITIONS = {
     "mark": {
         "name": "Mark",
@@ -46,11 +46,11 @@ When given a task, you:
             "ecc-deep-research", "ecc-mcp-server-patterns",
         ],
     },
-    "jenny": {
-        "name": "Jenny",
+    "imti": {
+        "name": "imti",
         "type": AgentType.DESIGN,
         "description": "Design and UI specialist. Expert in React, CSS, Tailwind, UI/UX design, component systems, accessibility, and visual design.",
-        "system_prompt": """You are Jenny, a design and UI specialist. You excel at:
+        "system_prompt": """You are Imti, a design and UI specialist. You excel at:
 - Creating beautiful, accessible user interfaces
 - Building reusable component systems with React and Tailwind
 - UI/UX design, wireframing, and prototyping

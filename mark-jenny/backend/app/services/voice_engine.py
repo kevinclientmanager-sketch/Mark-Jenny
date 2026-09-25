@@ -1,5 +1,5 @@
 """
-Voice Engine — Real-time voice conversation with Mark Jenny agents.
+Voice Engine — Real-time voice conversation with Mark-Imti agents.
 
 Supports multiple STT/TTS backends:
 1. Browser Web Speech API (free, no API keys, works offline)
@@ -291,12 +291,12 @@ class VoiceEngine:
         format: str = "webm",
         language: str = "en",
         conversation_history: Optional[list] = None,
-        agent_type: str = "jenny",
+        agent_type: str = "imti",
     ) -> Dict[str, Any]:
         """
         Complete voice conversation turn:
         1. STT — transcribe user's speech
-        2. AI — process with agent (Mark or Jenny)
+        2. AI — process with agent (Mark or Imti)
         3. TTS — convert response to speech
         Returns both text and audio response.
         """
@@ -357,7 +357,7 @@ When the user asks you to build something, confirm and describe what you'll do.
 When explaining technical concepts, use simple language.
 Keep responses under 3 sentences unless the user asks for detail."""
         else:
-            return """You are Jenny, a warm, intelligent AI assistant.
+            return """You are Imti, a warm, intelligent AI assistant.
 Speak naturally and conversationally, like talking to a knowledgeable friend.
 Be helpful, clear, and concise. Use simple language.
 When you don't know something, say so honestly.

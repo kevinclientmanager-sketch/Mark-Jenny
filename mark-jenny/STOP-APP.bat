@@ -1,11 +1,11 @@
 @echo off
-title MARK JENNY - Launcher
-REM MARK JENNY - STOP (hidden background)
+title Mark-Imti - Launcher
+REM Mark-Imti - STOP (hidden background)
 REM Stops the backend + frontend processes started by START-APP.bat.
 
 set "PIDFILE=%~dp0logs\app.pids"
 if not exist "%PIDFILE%" (
-    echo No running MARK JENNY instance found (pid file missing).
+    echo No running Mark-Imti instance found (pid file missing).
     pause
     exit /b 1
 )
@@ -16,5 +16,5 @@ for %%P in (%PIDS%) do (
 )
 
 del "%PIDFILE%"
-echo MARK JENNY stopped.
+echo Mark-Imti stopped.
 pause

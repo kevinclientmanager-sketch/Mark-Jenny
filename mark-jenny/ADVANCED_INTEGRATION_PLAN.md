@@ -1,4 +1,4 @@
-# Mark Jenny — Advanced Intelligence Integration Plan
+# Mark-Imti — Advanced Intelligence Integration Plan
 ## GPT-6 Astra & Claude Mythos 5 Feature Analysis + Implementation
 
 ---
@@ -65,11 +65,11 @@
 
 ---
 
-## PART 2: CAPABILITY MAPPING FOR MARK JENNY
+## PART 2: CAPABILITY MAPPING FOR Mark-Imti
 
-### From GPT-6 Astra → Mark Jenny Features
+### From GPT-6 Astra → Mark-Imti Features
 
-| Astra Capability | Mark Jenny Feature | Priority |
+| Astra Capability | Mark-Imti Feature | Priority |
 |------------------|-------------------|----------|
 | Advanced Reasoning | Deep Analysis Engine | HIGH |
 | Agentic Workflows | Multi-Step Task Orchestrator | HIGH |
@@ -80,9 +80,9 @@
 | Document Workflows | Document Generation Engine | MEDIUM |
 | Reasoning Levels | Adaptive Reasoning Control | HIGH |
 
-### From Claude Mythos 5 → Mark Jenny Features
+### From Claude Mythos 5 → Mark-Imti Features
 
-| Mythos Capability | Mark Jenny Feature | Priority |
+| Mythos Capability | Mark-Imti Feature | Priority |
 |-------------------|-------------------|----------|
 | Cybersecurity | Vulnerability Scanner | HIGH |
 | Biology Research | Bio Research Assistant | HIGH |
@@ -168,10 +168,10 @@
 - Adaptive Reasoning control (auto/fast/balanced/deep)
 
 ### Chat Integration
-- Jenny detects when user needs deep analysis
+- Imti detects when user needs deep analysis
 - Routes to appropriate engine
 - Shows reasoning process in right panel
-- Jenny reviews and validates results
+- Imti reviews and validates results
 
 ### Right Panel Integration
 - Live reasoning visualization
@@ -186,7 +186,7 @@
 ```
 User Request (plain language)
     ↓
-Jenny (Intent Parser)
+Imti (Intent Parser)
     ↓
 ┌─────────────────────────────────────┐
 │  Deep Analysis Engine              │
@@ -212,7 +212,7 @@ Jenny (Intent Parser)
 │  └── Research Synthesizer          │
 └─────────────────────────────────────┘
     ↓
-Jenny (Quality Check + Review)
+Imti (Quality Check + Review)
     ↓
 Result to User + Right Panel Preview
 ```
@@ -234,7 +234,7 @@ Result to User + Right Panel Preview
 
 ---
 
-## PART 8: WHAT MARK JENNY WILL BE ABLE TO DO
+## PART 8: WHAT Mark-Imti WILL BE ABLE TO DO
 
 After implementation:
 

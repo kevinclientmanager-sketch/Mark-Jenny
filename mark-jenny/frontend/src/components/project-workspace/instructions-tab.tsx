@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Save, RotateCcw, Clock, Loader2, AlertCircle, CheckCircle } from "lucide-react";
@@ -203,3 +203,4 @@ export function InstructionsTab({ projectId }: { projectId: number }) {
     </div>
   );
 }
+

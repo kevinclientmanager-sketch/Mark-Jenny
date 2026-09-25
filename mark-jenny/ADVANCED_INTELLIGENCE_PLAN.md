@@ -1,5 +1,5 @@
-# Mark Jenny — Advanced Intelligence Build Plan
-## Making Mark Jenny Agents Work Like GPT-6 Astra & Claude Mythos 5
+# Mark-Imti — Advanced Intelligence Build Plan
+## Making Mark-Imti Agents Work Like GPT-6 Astra & Claude Mythos 5
 
 ---
 
@@ -28,13 +28,13 @@
 
 ## Core Insight: The Intelligence Is In The AGENTS, Not The Models
 
-The user's vision: Mark and Jenny agents should be smart enough to do what Astra and Mythos do — **using whatever model the user configures (local or online)**. The agents contain the WORKFLOWS, DECISION LOGIC, and DOMAIN EXPERTISE. The model is just the brain that powers them.
+The user's vision: Mark and Imti agents should be smart enough to do what Astra and Mythos do — **using whatever model the user configures (local or online)**. The agents contain the WORKFLOWS, DECISION LOGIC, and DOMAIN EXPERTISE. The model is just the brain that powers them.
 
 **Architecture:**
 ```
 User Request (plain language)
     ↓
-Mark/Jenny Agent (contains the intelligence)
+Mark/Imti Agent (contains the intelligence)
     ├── Classifies task type
     ├── Selects workflow (cyber, bio, coding, analysis)
     ├── Breaks into steps
@@ -160,13 +160,13 @@ Built-in system that handles:
 
 **Example: Security Scan**
 1. User: "Scan my backend code for security issues"
-2. Agent (Jenny): Classifies as cybersecurity task → activates security workflow
+2. Agent (Imti): Classifies as cybersecurity task → activates security workflow
 3. Agent: Reads all Python files in backend
 4. Agent: For each file, calls the configured model with security analysis prompt
 5. Agent: Collects all findings, deduplicates, classifies severity
 6. Agent: Generates fix suggestions for each vulnerability
 7. Agent: Produces comprehensive security report
-8. Jenny: Presents report to user with severity ratings and fixes
+8. Imti: Presents report to user with severity ratings and fixes
 
 **Example: Biology Research**
 1. User: "Research protein folding mechanisms and suggest hypotheses"

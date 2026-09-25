@@ -1,4 +1,4 @@
-# MARK JENNY - CONSOLIDATED SUPER-AGENT SPEC (SINGLE SOURCE OF TRUTH)
+# Mark-Imti - CONSOLIDATED SUPER-AGENT SPEC (SINGLE SOURCE OF TRUTH)
 # Saved: 2026-08-22 - Locked in memory + disk. Never forget. Extends original 16-phase contract.
 
 ## MARK CORE - 21 ENGINES (must all be real)

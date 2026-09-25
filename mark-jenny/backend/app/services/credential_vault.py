@@ -16,7 +16,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-CREDENTIALS_DIR = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "credentials"
+CREDENTIALS_DIR = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "credentials"
 CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
 
 CREDENTIALS_FILE = CREDENTIALS_DIR / "vault.json"
@@ -60,7 +60,7 @@ def _get_master_key() -> str:
     # Use a machine-specific key derived from hostname + user
     import platform
     import getpass
-    raw = f"{platform.node()}-{getpass.getuser()}-mark-jenny-vault"
+    raw = f"{platform.node()}-{getpass.getuser()}-MARK-IMTI-vault"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 

@@ -261,3 +261,5 @@ export default function AIPage() {
     </ProtectedLayout>
   );
 }
+
+

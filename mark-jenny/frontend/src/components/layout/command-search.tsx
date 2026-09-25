@@ -39,7 +39,23 @@ const PAGES: { label: string; href: string; icon: LucideIcon; hint: string; keyw
 
 type SearchItem = { label: string; hint: string; href: string; icon: React.ReactNode };
 
-export function CommandSearch() {
+export interface CommandSearchProps {
+  archivePasswordImti?: string;
+  archivePasswordSetImti?: boolean;
+  archivePasswordMark?: string;
+  archivePasswordSetMark?: boolean;
+  onUnlockImti?: () => void;
+  onUnlockMark?: () => void;
+}
+
+export function CommandSearch({
+  archivePasswordImti = "",
+  archivePasswordSetImti = false,
+  archivePasswordMark = "",
+  archivePasswordSetMark = false,
+  onUnlockImti,
+  onUnlockMark,
+}: CommandSearchProps) {
   const open = useSearchOpen();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -118,6 +134,22 @@ export function CommandSearch() {
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
+
+  // Detect archive password input
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
+    if (archivePasswordSetImti && q === archivePasswordImti) {
+      onUnlockImti?.();
+      setSearchOpen(false);
+      return;
+    }
+    if (archivePasswordSetMark && q === archivePasswordMark) {
+      onUnlockMark?.();
+      setSearchOpen(false);
+      return;
+    }
+  }, [query, archivePasswordImti, archivePasswordMark, archivePasswordSetImti, archivePasswordSetMark, onUnlockImti, onUnlockMark]);
 
   if (!open) return null;
 
@@ -201,3 +233,4 @@ export function CommandSearch() {
     </div>
   );
 }
+

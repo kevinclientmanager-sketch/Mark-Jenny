@@ -12,7 +12,7 @@
 `USER REQUEST → Intent Analysis → Goal Decomposition → Plan → Skill Selection → Model Selection (ModelRouter cost/speed/capability + Ollama hybrid) → Tool Selection → Execution (sandbox) → Observation → Validation → Self-Correction → Memory Update → Project Storage`
 
 ## Persistence
-`app/db/base.py:Base` → 34 tables (see DATABASE_SCHEMA.md) via `app/db/init_db.py:create_all` (SQLite file `mark_jenny.db` + `uploads/`). No silent overwrite, FK cascades, indexes.
+`app/db/base.py:Base` → 34 tables (see DATABASE_SCHEMA.md) via `app/db/init_db.py:create_all` (SQLite file `mark_imti.db` + `uploads/`). No silent overwrite, FK cascades, indexes.
 
 ## Auth
 `app/core/security.py:OAuth2PasswordBearer` JWT access 30m + refresh 7d httpOnly cookie + `Session` table rotation, `get_current_user` dependency, RBAC `USER/CREATOR/ADMIN`.

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, projects, tasks, files, schedules, websocket, project_workspace, chat, quick_actions, knowledge, memory, skills, browser, computer, execution, models, generative, settings, admin, advanced, advanced_features, agent_brain, agents, integrations, extensions, features, self_build, advanced_intelligence, advanced_workflows, voice, cybersecurity_agent, core_laws
+from app.api.v1.endpoints import auth, users, projects, tasks, files, schedules, websocket, project_workspace, chat, quick_actions, knowledge, memory, skills, browser, computer, execution, models, generative, settings, admin, advanced, advanced_features, agent_brain, agents, integrations, extensions, features, self_build, advanced_intelligence, advanced_workflows, voice, cybersecurity_agent, core_laws, agent_engine, work_agent
 
 api_router = APIRouter()
 
@@ -36,3 +36,5 @@ api_router.include_router(advanced_workflows.router, prefix="/workflows", tags=[
 api_router.include_router(voice.router, prefix="/voice", tags=["voice"])
 api_router.include_router(cybersecurity_agent.router, prefix="/cybersecurity-agent", tags=["cybersecurity-agent"])
 api_router.include_router(core_laws.router, prefix="/core-laws", tags=["core-laws"])
+api_router.include_router(agent_engine.router, prefix="/agent-engine", tags=["agent-engine"])
+api_router.include_router(work_agent.router, prefix="/work-agent", tags=["work-agent"])

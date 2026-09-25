@@ -1,4 +1,4 @@
-# MARK JENNY — Autonomous AI Operating Platform
+# Mark-Imti — Autonomous AI Operating Platform
 
 Production-ready autonomous AI agent platform: Windows desktop + Web, shared business logic, 23 routes, 34 tables.
 
@@ -6,7 +6,7 @@ Production-ready autonomous AI agent platform: Windows desktop + Web, shared bus
 
 ```bash
 # Backend (FastAPI + SQLite)
-cd mark-jenny/backend
+cd MARK-IMTI/backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
@@ -35,7 +35,7 @@ See `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`, `docs/ENV_VARS.md`, `docs
 
 ## Windows Desktop
 
-Built with Tauri/Electron wrapper over Next.js + FastAPI sidecar. See `docs/WINDOWS_INSTALL.md` and `frontend/tauri.conf.json`. Installs to Start Menu/Desktop, tray, persistent `%APPDATA%/MarkJenny`, auto-update, crash recovery.
+Built with Tauri/Electron wrapper over Next.js + FastAPI sidecar. See `docs/WINDOWS_INSTALL.md` and `frontend/tauri.conf.json`. Installs to Start Menu/Desktop, tray, persistent `%APPDATA%/markimti`, auto-update, crash recovery.
 
 ## Tests
 

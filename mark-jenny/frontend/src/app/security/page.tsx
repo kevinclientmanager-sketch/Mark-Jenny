@@ -244,3 +244,5 @@ export default function SecurityPage() {
     </ProtectedLayout>
   );
 }
+
+

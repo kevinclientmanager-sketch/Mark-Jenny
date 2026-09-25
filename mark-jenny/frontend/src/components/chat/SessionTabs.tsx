@@ -60,3 +60,4 @@ export function SessionTabs({
     </div>
   );
 }
+

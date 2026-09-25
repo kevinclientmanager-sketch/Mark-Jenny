@@ -1,5 +1,5 @@
 """
-Self-Builder Service — Mark Jenny's ability to browse GitHub, discover skills, and install them.
+Self-Builder Service — Mark-Imti's ability to browse GitHub, discover skills, and install them.
 
 This is the core self-improvement loop:
 1. Search GitHub for skill repos (SKILL.md files)

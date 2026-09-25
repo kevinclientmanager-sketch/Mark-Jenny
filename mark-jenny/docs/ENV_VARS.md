@@ -4,7 +4,7 @@ All secrets via `/.env` (never hardcode). See `.env.example`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///./mark_jenny.db` | SQLite file or `postgresql://user:pass@host:5432/db` for prod |
+| `DATABASE_URL` | `sqlite:///./mark_imti.db` | SQLite file or `postgresql://user:pass@host:5432/db` for prod |
 | `SECRET_KEY` | `secrets.token_urlsafe(32)` | JWT signing - **must** set in prod via env |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Access token TTL |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh cookie TTL |

@@ -5,12 +5,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./mark_jenny.db
+      - DATABASE_URL=sqlite:///./mark_imti.db
       - SECRET_KEY=${SECRET_KEY}
       - CORS_ORIGINS=["http://localhost:3000"]
     volumes:
       - ./uploads:/app/uploads
-      - ./mark_jenny.db:/app/mark_jenny.db
+      - ./mark_imti.db:/app/mark_imti.db
     restart: unless-stopped
   frontend:
     build:

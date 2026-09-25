@@ -3,7 +3,8 @@
 import { Moon, Sun, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { setSearchOpen } from "@/lib/nav/search-store";
 
 const TITLES: Record<string, string> = {
@@ -18,6 +19,10 @@ const TITLES: Record<string, string> = {
   "/knowledge": "Knowledge",
   "/generate": "Generate",
   "/agents": "Agents",
+  "/scheduled": "Scheduled",
+  "/memory": "Memory",
+  "/admin": "Admin",
+  "/advanced": "Advanced",
   "/settings": "Settings",
 };
 
@@ -26,12 +31,19 @@ function titleFromPath(pathname: string): string {
   const exact = TITLES[pathname];
   if (exact) return exact;
   if (pathname.startsWith("/auth")) return "Account";
-  return "mark jenny";
+  return "Mark-Imti";
 }
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const modeTabs = [
+    { label: "Chat", href: "/chat" },
+    { label: "Work", href: "/projects" },
+    { label: "Browse", href: "/chat?mode=browse" },
+  ];
 
   return (
     <header className="h-16 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40">
@@ -39,6 +51,37 @@ export function Header() {
         <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           {titleFromPath(pathname)}
         </h1>
+
+        <nav aria-label="Workspace mode" className="hidden items-center gap-1 rounded-lg border bg-muted/40 p-1 md:flex">
+          {modeTabs.map((tab) => {
+            const active = tab.href === "/chat"
+              ? pathname === "/chat" && searchParams.get("mode") !== "browse"
+              : tab.href === "/projects"
+                ? pathname.startsWith("/projects")
+                : pathname === "/chat" && searchParams.get("mode") === "browse";
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                onClick={() => {
+                  if (tab.label === "Browse") {
+                    window.localStorage.setItem("mark.sidebarMode", "browse");
+                    window.location.href = tab.href;
+                  } else if (tab.label === "Chat") {
+                    window.localStorage.setItem("mark.sidebarMode", "chat");
+                    window.location.href = tab.href;
+                  } else {
+                    router.push(tab.href);
+                  }
+                }}
+                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors", active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                aria-current={active ? "page" : undefined}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
 
         <div className="flex items-center gap-2">
           <button

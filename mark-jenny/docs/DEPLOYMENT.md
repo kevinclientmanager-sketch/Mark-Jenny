@@ -3,7 +3,7 @@
 ## Local Dev (SQLite)
 ```bash
 # Backend
-cd mark-jenny/backend
+cd MARK-IMTI/backend
 $env:PYTHONPATH="."; uvicorn app.main:app --reload --port 8000
 # Frontend
 cd ../frontend

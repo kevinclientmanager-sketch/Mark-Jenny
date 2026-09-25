@@ -433,3 +433,5 @@ export default function SkillsPage() {
     </ProtectedLayout>
   );
 }
+
+

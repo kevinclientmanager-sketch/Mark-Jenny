@@ -392,3 +392,5 @@ export default function AdvancedPage() {
     </ProtectedLayout>
   );
 }
+
+

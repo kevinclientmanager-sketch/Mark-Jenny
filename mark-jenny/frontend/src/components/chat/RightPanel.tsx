@@ -279,7 +279,7 @@ export function RightPanel({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-900">
       {/* Tab bar */}
-      <div className="flex items-center border-b shrink-0">
+      <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 shrink-0">
         <div className="flex items-center gap-0.5 px-1 py-1 overflow-x-auto flex-1">
           {TABS.map((tab) => (
             <button
@@ -320,3 +320,4 @@ export function RightPanel({
     </div>
   );
 }
+

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Image as ImageIcon, File, Laptop, Plug, Code2, Presentation, Wand2, Search, Calendar, Table, Video, Music, BookOpen, Loader2, Play } from "lucide-react";
+import { Camera, Image as ImageIcon, File, Laptop, Plug, Code2, Presentation, Wand2, Search, Calendar, Table, Video, Music, BookOpen, Loader2, Play, Pin, PinOff, ArrowUp, ArrowDown, LayoutGrid, List, LayoutList } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose,
 } from "@/components/ui/sheet";
@@ -33,6 +33,34 @@ export default function QuickActionsPage() {
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const router = useRouter();
+  const [view, setView] = useState<"grid" | "list" | "compact">("grid");
+
+  // Pinned actions state — stored in localStorage
+  const PINNED_KEY = "mark.pinnedQuickActions";
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(PINNED_KEY) || "[]"); } catch { return []; }
+  });
+
+  const togglePin = (actionId: string) => {
+    setPinnedIds(prev => {
+      const next = prev.includes(actionId) ? prev.filter(id => id !== actionId) : [...prev, actionId];
+      localStorage.setItem(PINNED_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const movePin = (actionId: string, dir: -1 | 1) => {
+    setPinnedIds(prev => {
+      const idx = prev.indexOf(actionId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      const swap = idx + dir;
+      if (swap < 0 || swap >= next.length) return prev;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      localStorage.setItem(PINNED_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(()=>{
     (async()=>{
@@ -97,13 +125,20 @@ export default function QuickActionsPage() {
           <Header />
           <main className="flex-1 p-6 overflow-auto">
             <div className="mx-auto max-w-6xl">
-              <div className="mb-6">
-                <h1 className="text-2xl font-semibold tracking-tight">Quick Actions</h1>
-                <p className="text-sm text-zinc-500">All workflows — each creates a tracked Task or navigates to its manager. No dead buttons.</p>
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-semibold tracking-tight">Quick Actions</h1>
+                  <p className="text-sm text-zinc-500">All workflows — each creates a tracked Task or navigates to its manager. No dead buttons.</p>
+                </div>
+                <div className="flex items-center gap-1 border rounded-lg p-1 bg-zinc-100 dark:bg-zinc-800">
+                  <button onClick={() => setView("grid")} className={`p-1.5 rounded ${view === "grid" ? "bg-white dark:bg-zinc-700 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} title="Grid view"><LayoutGrid className="h-4 w-4"/></button>
+                  <button onClick={() => setView("list")} className={`p-1.5 rounded ${view === "list" ? "bg-white dark:bg-zinc-700 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} title="List view"><List className="h-4 w-4"/></button>
+                  <button onClick={() => setView("compact")} className={`p-1.5 rounded ${view === "compact" ? "bg-white dark:bg-zinc-700 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} title="Compact view"><LayoutList className="h-4 w-4"/></button>
+                </div>
               </div>
               {loading ? <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin"/></div> : actions.length === 0 ? (
                 <Card className="p-8 text-center text-zinc-500">No quick actions found.</Card>
-              ) : (
+              ) : view === "grid" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {actions.map(a=>{
                     const Icon = iconMap[a.icon] || File;
@@ -112,7 +147,18 @@ export default function QuickActionsPage() {
                         <CardHeader className="pb-2">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-lg bg-zinc-900/5 dark:bg-white/10 flex items-center justify-center"><Icon className="h-5 w-5 text-blue-600 dark:text-blue-400"/></div>
-                            <CardTitle className="text-base">{a.label}</CardTitle>
+                            <CardTitle className="text-base flex-1">{a.label}</CardTitle>
+                            <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                              {pinnedIds.includes(a.id) && (
+                                <>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Move up" onClick={() => movePin(a.id, -1)} disabled={pinnedIds.indexOf(a.id) === 0}><ArrowUp className="h-3 w-3"/></Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Move down" onClick={() => movePin(a.id, 1)} disabled={pinnedIds.indexOf(a.id) === pinnedIds.length - 1}><ArrowDown className="h-3 w-3"/></Button>
+                                </>
+                              )}
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title={pinnedIds.includes(a.id) ? "Unpin from sidebar" : "Pin to sidebar"} onClick={() => togglePin(a.id)}>
+                                {pinnedIds.includes(a.id) ? <PinOff className="h-3.5 w-3.5 text-blue-600"/> : <Pin className="h-3.5 w-3.5 text-zinc-400"/>}
+                              </Button>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -123,6 +169,64 @@ export default function QuickActionsPage() {
                           </div>
                         </CardContent>
                       </Card>
+                    );
+                  })}
+                </div>
+              ) : view === "list" ? (
+                <div className="flex flex-col gap-2">
+                  {actions.map(a=>{
+                    const Icon = iconMap[a.icon] || File;
+                    return (
+                      <Card key={a.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={()=>handleCardClick(a)}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-zinc-900/5 dark:bg-white/10 flex items-center justify-center shrink-0"><Icon className="h-5 w-5 text-blue-600 dark:text-blue-400"/></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">{a.label}</p>
+                              <p className="text-xs text-zinc-500 truncate">{a.desc}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Badge variant="outline" className="text-xs">{a.category}</Badge>
+                              {a.needs_file && <Badge variant="secondary" className="text-xs">file</Badge>}
+                              <div onClick={e => e.stopPropagation()} className="flex items-center gap-0.5 ml-2">
+                                {pinnedIds.includes(a.id) && (
+                                  <>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => movePin(a.id, -1)} disabled={pinnedIds.indexOf(a.id) === 0}><ArrowUp className="h-3 w-3"/></Button>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => movePin(a.id, 1)} disabled={pinnedIds.indexOf(a.id) === pinnedIds.length - 1}><ArrowDown className="h-3 w-3"/></Button>
+                                  </>
+                                )}
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => togglePin(a.id)}>
+                                  {pinnedIds.includes(a.id) ? <PinOff className="h-3 w-3 text-blue-600"/> : <Pin className="h-3 w-3 text-zinc-400"/>}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {actions.map(a=>{
+                    const Icon = iconMap[a.icon] || File;
+                    return (
+                      <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors" onClick={()=>handleCardClick(a)}>
+                        <Icon className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0"/>
+                        <span className="text-sm font-medium flex-1 truncate">{a.label}</span>
+                        <Badge variant="outline" className="text-[10px] shrink-0">{a.category}</Badge>
+                        <div onClick={e => e.stopPropagation()} className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {pinnedIds.includes(a.id) && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => movePin(a.id, -1)} disabled={pinnedIds.indexOf(a.id) === 0}><ArrowUp className="h-2.5 w-2.5"/></Button>
+                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => movePin(a.id, 1)} disabled={pinnedIds.indexOf(a.id) === pinnedIds.length - 1}><ArrowDown className="h-2.5 w-2.5"/></Button>
+                            </>
+                          )}
+                          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => togglePin(a.id)}>
+                            {pinnedIds.includes(a.id) ? <PinOff className="h-2.5 w-2.5 text-blue-600"/> : <Pin className="h-2.5 w-2.5 text-zinc-400"/>}
+                          </Button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -187,3 +291,5 @@ export default function QuickActionsPage() {
     </ProtectedLayout>
   );
 }
+
+

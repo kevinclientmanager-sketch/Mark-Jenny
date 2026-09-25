@@ -1,9 +1,9 @@
 {
-  "name": "mark-jenny",
+  "name": "MARK-IMTI",
   "version": "1.0.0",
-  "description": "Mark Jenny — Autonomous AI Operating Platform",
+  "description": "Mark-Imti — Autonomous AI Operating Platform",
   "main": "main.js",
-  "author": "Mark Jenny Team",
+  "author": "Mark-Imti Team",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -12,8 +12,8 @@
     "build:installer": "electron-builder --win nsis"
   },
   "build": {
-    "appId": "com.markjenny.desktop",
-    "productName": "Mark Jenny",
+    "appId": "com.markimti.desktop",
+    "productName": "Mark-Imti",
     "directories": {
       "output": "dist"
     },
@@ -42,7 +42,7 @@
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Mark Jenny",
+      "shortcutName": "Mark-Imti",
       "include": "installer.nsh"
     }
   },

@@ -15,7 +15,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-MCP_CONFIG_DIR = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "mcp"
+MCP_CONFIG_DIR = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "mcp"
 MCP_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 MCP_CONFIG_FILE = MCP_CONFIG_DIR / "servers.json"
@@ -112,7 +112,7 @@ class MCPClient:
                 "params": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "mark-jenny", "version": "1.0.0"},
+                    "clientInfo": {"name": "MARK-IMTI", "version": "1.0.0"},
                 },
             }
 

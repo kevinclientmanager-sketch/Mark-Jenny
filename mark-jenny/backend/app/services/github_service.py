@@ -25,14 +25,14 @@ class GitHubService:
         self._load_token()
 
     def _load_token(self):
-        token_file = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "credentials" / "github_token.json"
+        token_file = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "credentials" / "github_token.json"
         if token_file.exists():
             with open(token_file) as f:
                 self.token = json.load(f).get("token")
 
     def set_token(self, token: str):
         self.token = token
-        token_file = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "credentials" / "github_token.json"
+        token_file = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "credentials" / "github_token.json"
         token_file.parent.mkdir(parents=True, exist_ok=True)
         with open(token_file, "w") as f:
             json.dump({"token": token}, f)
@@ -107,7 +107,7 @@ class GitHubService:
                 return base64.b64decode(r.json().get("content", "")).decode()
         return None
 
-    async def push_to_repo(self, local_path: str, repo_url: str, branch: str = "main", message: str = "Update from Mark Jenny") -> Dict:
+    async def push_to_repo(self, local_path: str, repo_url: str, branch: str = "main", message: str = "Update from Mark-Imti") -> Dict:
         """Git add, commit, and push a local directory to a GitHub repo."""
         path = Path(local_path)
         if not path.exists():
@@ -131,11 +131,11 @@ class GitHubService:
 
             # Configure user
             await asyncio.create_subprocess_exec(
-                "git", "config", "user.email", "mark@markjenny.com", cwd=str(path),
+                "git", "config", "user.email", "mark@markimti.com", cwd=str(path),
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             await asyncio.create_subprocess_exec(
-                "git", "config", "user.name", "Mark Jenny", cwd=str(path),
+                "git", "config", "user.name", "Mark-Imti", cwd=str(path),
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
 

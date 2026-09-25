@@ -1,7 +1,7 @@
 import sqlite3, json
 from datetime import datetime, timedelta, timezone
 
-db = sqlite3.connect(r"C:\Users\LAP TECH\Music\Mark\mark-jenny\backend\mark_jenny.db")
+db = sqlite3.connect(r"C:\Users\LAP TECH\Music\Mark\MARK-IMTI\backend\mark_imti.db")
 c = db.cursor()
 
 row = c.execute("select id from users where email = ?", ("kevin.clientmanager@gmail.com",)).fetchone()

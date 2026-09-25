@@ -27,7 +27,7 @@ async def voice_websocket(websocket: WebSocket):
     Client sends JSON:
       {"type": "audio", "data": "<base64 audio>", "format": "webm", "language": "en"}
       {"type": "text", "text": "hello"}  (for text input during voice mode)
-      {"type": "config", "agent": "jenny", "voice": "en-US-AriaNeural"}
+      {"type": "config", "agent": "imti", "voice": "en-US-AriaNeural"}
 
     Server sends JSON:
       {"type": "transcript", "text": "user said...", "role": "user"}
@@ -39,7 +39,7 @@ async def voice_websocket(websocket: WebSocket):
     await websocket.accept()
 
     conversation_history = []
-    agent_type = "jenny"
+    agent_type = "imti"
     voice_name = "en-US-AriaNeural"
 
     try:
@@ -55,7 +55,7 @@ async def voice_websocket(websocket: WebSocket):
 
             # ---- Configuration ----
             if msg_type == "config":
-                agent_type = msg.get("agent", "jenny")
+                agent_type = msg.get("agent", "imti")
                 voice_name = msg.get("voice", "en-US-AriaNeural")
                 await websocket.send_json({
                     "type": "status",

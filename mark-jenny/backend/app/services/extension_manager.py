@@ -1,5 +1,5 @@
 """
-Mark Jenny Self-Builder — Extension Manager
+Mark-Imti Self-Builder — Extension Manager
 Downloads, installs, and manages extensions, skills, models, and features.
 The app can enhance itself without user intervention.
 """
@@ -18,22 +18,22 @@ from app.core.config import get_settings
 settings = get_settings()
 
 # Extension directories
-EXTENSIONS_DIR = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "extensions"
+EXTENSIONS_DIR = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "extensions"
 EXTENSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
-MODELS_DIR = Path(os.environ.get("MARK_JENNY_DATA", ".")) / "models"
+MODELS_DIR = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Extension registry
-REGISTRY_URL = "https://raw.githubusercontent.com/markjenny/extensions/main/registry.json"
+REGISTRY_URL = "https://raw.githubusercontent.com/markimti/extensions/main/registry.json"
 
 # Built-in extension types
 EXTENSION_TYPES = {
     "skill": "AI Skills — specialized instructions for tasks",
-    "plugin": "Plugins — add new capabilities to Mark Jenny",
+    "plugin": "Plugins — add new capabilities to Mark-Imti",
     "model": "Models — download and run AI models locally",
     "connector": "Connectors — integrate with external services",
-    "theme": "Themes — customize Mark Jenny's appearance",
+    "theme": "Themes — customize Mark-Imti's appearance",
     "agent": "Agents — specialist AI agents for specific domains",
 }
 

@@ -240,3 +240,4 @@ export function parseReasoningTrace(
   if (metadata.plan?.strategy) return [`Strategy: ${metadata.plan.strategy}`];
   return [];
 }
+

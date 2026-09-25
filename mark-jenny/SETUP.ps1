@@ -1,6 +1,6 @@
-# MARK JENNY - Install dependencies (run once after cloning)
+# Mark-Imti - Install dependencies (run once after cloning)
 $Root = $PSScriptRoot
-Write-Host "=== MARK JENNY SETUP ==="
+Write-Host "=== Mark-Imti SETUP ==="
 Write-Host ""
 
 # 1. Backend venv

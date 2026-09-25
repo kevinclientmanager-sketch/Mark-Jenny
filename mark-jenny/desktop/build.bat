@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Mark Jenny Desktop - Build Script
+echo   Mark-Imti Desktop - Build Script
 echo ========================================
 echo.
 
@@ -42,7 +42,7 @@ if %errorlevel% neq 0 (
 :: Copy backend executable to desktop/binaries
 echo Copying backend to desktop...
 mkdir ..\desktop\binaries 2>nul
-copy dist\mark-jenny-server\mark-jenny-server.exe ..\desktop\binaries\
+copy dist\mark-imti-server\mark-imti-server.exe ..\desktop\binaries\
 
 echo.
 echo [3/4] Building frontend...
@@ -62,7 +62,7 @@ echo.
 echo ========================================
 echo   Build Complete!
 echo ========================================
-echo   Installer: desktop\dist\Mark Jenny Setup.exe
-echo   Portable:  desktop\dist\Mark Jenny.exe
+echo   Installer: desktop\dist\Mark-Imti Setup.exe
+echo   Portable:  desktop\dist\Mark-Imti.exe
 echo ========================================
 pause

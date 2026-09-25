@@ -3,7 +3,7 @@ import asyncio
 import httpx
 import json
 import sys
-sys.path.insert(0, r"C:\Users\LAP TECH\Music\Mark\mark-jenny\backend")
+sys.path.insert(0, r"C:\Users\LAP TECH\Music\Mark\MARK-IMTI\backend")
 
 async def test():
     # Test 1: Check if we can access the repo

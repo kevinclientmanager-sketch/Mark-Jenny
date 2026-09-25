@@ -737,6 +737,7 @@ class AgentBrain:
 
     def __init__(self, db):
         self.db = db
+        self._user_id = None
 
     def think(self, goal: str, user_id: int = None, project_id: int = None) -> Dict[str, Any]:
         """
@@ -762,12 +763,24 @@ class AgentBrain:
         }
 
     async def chat(self, user_message: str, user_id: int = None,
-                   project_id: int = None, chat_history: list = None) -> str:
+                   project_id: int = None, chat_history: list = None,
+                   think: bool = False, model: str = None) -> str:
         """
         Generate an actual AI response by calling the LLM.
         This is the REAL chat function that calls Ollama or cloud API.
         """
         import httpx
+
+        # Keep the authenticated identity available to provider routing. This is
+        # request-scoped because provider credentials belong to the current user.
+        self._user_id = user_id
+
+        # Enforce Core Laws before memory retrieval, model calls, or tool routing.
+        # This makes Imti's safety configuration an actual runtime boundary,
+        # rather than model-only guidance.
+        blocked_reason = self._law_block_reason(user_message)
+        if blocked_reason:
+            return f"{blocked_reason} No model or external tool was called."
 
         # Step 1: Get context from brain
         context = self.think(user_message, user_id, project_id)
@@ -796,6 +809,12 @@ class AgentBrain:
             history_block = "\n".join([f"{m['role']}: {m['content'][:300]}" for m in recent])
 
         # Full prompt
+        reasoning_instruction = (
+            "Work through the request carefully in explicit stages, verify assumptions, and include an actionable execution plan before acting."
+            if think else
+            "Answer directly while still checking assumptions and identifying the next concrete action."
+        )
+        model_instruction = f"Preferred model: {model}." if model else "Use the best available configured model."
         user_prompt = f"""Context:
 {context_block}
 
@@ -805,7 +824,11 @@ User message: {user_message}
 
 Intent detected: {intent['intent']} (confidence: {intent['confidence']:.0%})
 
-Respond helpfully, directly, and specifically. If the user wants to build something, outline what you'll do. If they ask a question, answer it. If they need a task done, explain your approach. Be concise but thorough."""
+{model_instruction}
+
+{reasoning_instruction}
+
+Respond helpfully, directly, and specifically. If the user wants to build something, outline what you'll do and then carry it through using the available tools. If they ask a question, answer it. If they need a task done, explain your approach and produce concrete outputs. Be concise but thorough."""
 
         # Step 3: Call the LLM
         response = await self._call_llm(system_prompt, user_prompt)
@@ -875,6 +898,43 @@ Violating a Core Law is the highest-severity failure. Never attempt it.
 """
         except Exception:
             return "\n## CORE LAWS\nError loading laws. Default safety principles apply.\n"
+
+    def _active_core_laws(self) -> list[dict[str, Any]]:
+        """Return active law codes for deterministic runtime enforcement.
+
+        Prompt instructions improve model behavior, but they are not a security
+        boundary. Imti therefore evaluates high-risk requests before any model
+        or tool call is made.
+        """
+        from pathlib import Path
+        import os
+
+        laws_file = Path(os.environ.get("MARK_IMTI_DATA", ".")) / "core_laws" / "laws.json"
+        try:
+            with laws_file.open(encoding="utf-8") as handle:
+                payload = json.load(handle)
+            return [law for law in payload.get("laws", []) if law.get("enabled", True)]
+        except (OSError, ValueError, TypeError):
+            return []
+
+    def _law_block_reason(self, user_message: str) -> Optional[str]:
+        """Return a user-safe reason when a configured law blocks a request."""
+        text = (user_message or "").lower()
+        for law in self._active_core_laws():
+            code = str(law.get("code", "")).upper()
+            if "BLOCK: DESTRUCTIVE_OPERATIONS" in code and any(
+                word in text for word in ("delete", "remove", "destroy", "drop database", "wipe")
+            ):
+                return "Core Law blocked destructive operations."
+            if "BLOCK: EXTERNAL_ACTIONS" in code and any(
+                word in text for word in ("send email", "publish", "deploy", "post publicly", "push to")
+            ):
+                return "Core Law blocked an external action until it is explicitly approved."
+            if "REQUIRE: USER_CONFIRMATION" in code and any(
+                word in text for word in ("deploy", "publish", "send email", "charge", "purchase")
+            ):
+                return "Core Law requires explicit user confirmation before this action."
+        return None
 
     def _build_system_prompt(self) -> str:
         """Build the Mythos-level system prompt for the LLM.
@@ -994,7 +1054,14 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         # 3. Try cloud APIs via ModelCaller (OpenAI, Anthropic, Google, etc.)
         try:
             from app.services.model_caller import ModelCaller
-            result = await ModelCaller.call(prompt, system, temperature=0.3, max_tokens=1024)
+            result = await ModelCaller.call(
+                    prompt,
+                    system,
+                    temperature=0.3,
+                    max_tokens=1024,
+                    db=self.db,
+                    user_id=getattr(self, "_user_id", None),
+                )
             if result:
                 return result
         except Exception:

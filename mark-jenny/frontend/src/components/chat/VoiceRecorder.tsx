@@ -89,3 +89,4 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
     </div>
   );
 }
+

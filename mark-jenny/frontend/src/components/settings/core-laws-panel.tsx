@@ -324,3 +324,4 @@ export function CoreLawsPanel() {
     </Card>
   );
 }
+

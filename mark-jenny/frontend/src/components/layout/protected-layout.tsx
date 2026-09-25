@@ -34,3 +34,4 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
   return <>{children}</>;
 }
+

@@ -247,3 +247,4 @@ const handleAddSkill = async (skillId: number) => {
   );
 }
 
+

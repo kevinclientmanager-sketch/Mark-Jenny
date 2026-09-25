@@ -54,7 +54,7 @@ class BrowserSession:
             self.browser = await self.playwright.chromium.launch(headless=True)
             self.context = await self.browser.new_context(
                 viewport={"width": 1280, "height": 800},
-                user_agent="MARK-JENNY/1.0",
+                user_agent="MARK-IMTI/1.0",
                 storage_state=str(self.storage_path) if self.persistent and self.storage_path.exists() else None
             )
             self.page = await self.context.new_page()
@@ -77,7 +77,7 @@ class BrowserSession:
             # Fallback: fetch via httpx
             try:
                 async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-                    r = await client.get(url, headers={"User-Agent": "MARK-JENNY/1.0"})
+                    r = await client.get(url, headers={"User-Agent": "MARK-IMTI/1.0"})
                     text = r.text[:5000]
                     return {"success": True, "url": url, "status": r.status_code, "snippet": text[:500], "mode": "fallback"}
             except Exception as e:

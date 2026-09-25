@@ -37,12 +37,21 @@ class IntegrateRequest(BaseModel):
     session_id: str
 
 
+@router.get("/access")
+async def my_builder_access(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.admin import can_use_builder
+    from app.core.master_admin import is_master_admin
+    return {"allowed": can_use_builder(current_user, db), "is_master": is_master_admin(current_user)}
+
 @router.get("/sessions")
 async def list_sessions(current_user: User = Depends(get_current_user)):
     return {"sessions": self_builder.list_sessions(), "stats": self_builder.get_stats()}
 
 @router.post("/start")
 async def start_build(data: StartBuildRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.admin import can_use_builder
+    if not can_use_builder(current_user, db):
+        raise HTTPException(status_code=403, detail="Self-builder access not granted. Ask a master admin to enable it for your account.")
     request = f"{data.user_request}\nBuild target: {data.normalized_target()}\nSandbox mode: {data.normalized_mode()}"
     session_id = await self_builder.start_build(request)
     _session_owners[session_id] = current_user.id
@@ -65,6 +74,9 @@ async def get_files(session_id: str, current_user: User = Depends(get_current_us
 
 @router.post("/{session_id}/integrate")
 async def integrate(session_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.admin import can_use_builder
+    if not can_use_builder(current_user, db):
+        raise HTTPException(status_code=403, detail="Self-builder access not granted. Ask a master admin to enable it for your account.")
     _owned_session(session_id, current_user.id)
     result = await self_builder.integrate_to_live(session_id)
     await log_audit(db, user_id=current_user.id, action="SELF_BUILD_INTEGRATE", resource_type="build", resource_id=session_id, success=result["success"])

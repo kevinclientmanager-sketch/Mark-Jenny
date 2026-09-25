@@ -11,6 +11,7 @@ from app.models.schedule import Schedule, ScheduleFrequency, ScheduleRunOption, 
 from app.models.approval import Approval, ApprovalType, ApprovalStatus
 from app.models.notification import Notification, NotificationType
 from app.models.audit import AuditLog, AuditAction
+from app.models.builder_access import BuilderAccess
 from app.models.generated import GeneratedWebsite, GeneratedApp, GeneratedType, GeneratedStatus, BrowserSession
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     "Approval", "ApprovalType", "ApprovalStatus",
     "Notification", "NotificationType",
     "AuditLog", "AuditAction",
+    "BuilderAccess",
     "GeneratedWebsite", "GeneratedApp", "GeneratedType", "GeneratedStatus", "BrowserSession",
 ]

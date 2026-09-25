@@ -18,7 +18,7 @@ import {
   Calendar, Code, Globe, Monitor, Lock, BookOpen, Network, Users, Bot,
   Play, Plug, Cpu, ExternalLink, Brain, Search, FileText, ImageIcon,
   Video, Music, Wifi, WifiOff, Plus, Pencil, Trash2, Copy, Power,
-  Pause, Link2, X, Save, ShieldAlert
+  Pause, Link2, X, Save, ShieldAlert, Eye, Hammer
 } from "lucide-react";
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -90,6 +90,8 @@ export function SettingsContent() {
   const [execResult, setExecResult] = useState<any>(null);
   const [executing, setExecuting] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [builderAccess, setBuilderAccess] = useState<any[]>([]);
+  const [monitor, setMonitor] = useState<any>(null);
   const [prefs, setPrefs] = useState<Record<string, any>>({});
   const [dataOverview, setDataOverview] = useState<any>(null);
   const [skills, setSkills] = useState<any[]>([]);
@@ -142,13 +144,19 @@ export function SettingsContent() {
     if (user) setFullName(user.full_name || "");
   }, [user]);
 
+  // Master admins (developers) only — these emails see Admin + User Management
+  const MASTER_EMAILS = ["kevin.clientmanager@gmail.com", "mamun.rashid5957@gmail.com"];
+  const isMaster = MASTER_EMAILS.includes((user?.email || "").toLowerCase());
+
   useEffect(() => {
     api.get("/schedules?page_size=20").then((r: any) => setSchedules(r.schedules || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (user?.role === "ADMIN") {
+    if (isMaster) {
       api.get("/admin/users?page_size=50").then((r: any) => setUsers(r.users || [])).catch(() => {});
+      api.get("/admin/builder-access").then((r: any) => setBuilderAccess(r.access || [])).catch(() => {});
+      api.get("/admin/monitor?limit=40").then((r: any) => setMonitor(r)).catch(() => {});
     }
   }, [user]);
 
@@ -330,6 +338,18 @@ export function SettingsContent() {
     } catch { toast.add({ title: "Failed to update role", type: "error" }); }
   };
 
+  const setBuilderAllowed = async (id: number, allowed: boolean) => {
+    try {
+      await api.post(`/admin/builder-access/${id}`, { allowed });
+      toast.add({ title: allowed ? "Builder access granted" : "Builder access revoked", type: "success" });
+      api.get("/admin/builder-access").then((r: any) => setBuilderAccess(r.access || [])).catch(() => {});
+    } catch { toast.add({ title: "Failed to update builder access", type: "error" }); }
+  };
+
+  const refreshMonitor = () => {
+    api.get("/admin/monitor?limit=40").then((r: any) => setMonitor(r)).catch(() => {});
+  };
+
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
@@ -379,9 +399,11 @@ export function SettingsContent() {
     { id: "about", label: "About", icon: Info },
   ];
 
-  const filteredTabs = tabs.filter((t) =>
-    t.label.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const filteredTabs = tabs
+    .filter((t) => (t.id === "users" || t.id === "admin" ? isMaster : true))
+    .filter((t) =>
+      t.label.toLowerCase().includes(search.trim().toLowerCase())
+    );
 
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -679,8 +701,8 @@ export function SettingsContent() {
           <TabsContent value="users">
             <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> User Management</CardTitle></CardHeader>
               <CardContent>
-                {user?.role !== "ADMIN" ? (
-                  <p className="text-sm text-zinc-500">Admin access required.</p>
+                {!isMaster ? (
+                  <p className="text-sm text-zinc-500">Master admin access required.</p>
                 ) : (
                   <div className="space-y-4">
                     <div className="p-3 border rounded-lg space-y-2">
@@ -1196,6 +1218,80 @@ export function SettingsContent() {
                 <SettingRow title="Role-Based Access" desc="ADMIN / USER roles control what each account can do." control={<Toggle checked={catFlag("security", "rbac")} onChange={(v) => setCat("security", "rbac", v)} />} />
                 <SettingRow title="Rate limiting" desc="API and auth protection against brute force." control={<Toggle checked={catFlag("security", "rate_limiting")} onChange={(v) => setCat("security", "rate_limiting", v)} />} />
                 <Button onClick={() => window.location.href = "/admin"}><ExternalLink className="mr-2 h-4 w-4" /> Open Admin</Button>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-4"><CardHeader><CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" /> Live Activity — what users are doing</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-zinc-500">Builds, tasks, chats and actions across all accounts.</p>
+                  <Button variant="outline" onClick={refreshMonitor}>Refresh</Button>
+                </div>
+                {(monitor?.builds || []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Build sessions</p>
+                    <div className="space-y-1.5">{monitor.builds.map((b: any) => (
+                      <div key={b.session_id} className="flex items-center justify-between gap-2 p-2 border rounded-lg text-xs">
+                        <span className="truncate">{(b.user_request || "").slice(0, 80)}</span>
+                        <span className="shrink-0 text-zinc-500">{b.owner_email || "unknown"} • {b.status}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                )}
+                {(monitor?.recent_tasks || []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Recent tasks</p>
+                    <div className="space-y-1.5">{monitor.recent_tasks.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between gap-2 p-2 border rounded-lg text-xs">
+                        <span className="truncate">{t.title}</span>
+                        <span className="shrink-0 text-zinc-500">{t.owner_email || "unknown"} • {t.status}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                )}
+                {(monitor?.recent_chats || []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Recent chats</p>
+                    <div className="space-y-1.5">{monitor.recent_chats.map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 p-2 border rounded-lg text-xs">
+                        <span className="truncate">{c.title || ("Chat #" + c.id)}</span>
+                        <span className="shrink-0 text-zinc-500">{c.owner_email || "unknown"}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                )}
+                {(monitor?.activity || []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Latest actions</p>
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">{monitor.activity.slice(0, 25).map((a: any) => (
+                      <div key={a.id} className="flex items-center justify-between gap-2 p-2 border rounded-lg text-xs">
+                        <span className="truncate">{a.action} <span className="text-zinc-400">{a.resource_type} {a.resource_id}</span></span>
+                        <span className="shrink-0 text-zinc-500">{a.user_email || "system"} {a.success === false ? "• failed" : ""}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                )}
+                {!monitor && <p className="text-sm text-zinc-500">Loading activity…</p>}
+              </CardContent>
+            </Card>
+
+            <Card className="mt-4"><CardHeader><CardTitle className="text-base flex items-center gap-2"><Hammer className="h-4 w-4" /> Self-builder access</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-zinc-500">Only users you allow can use Mark's self-builder. Master admins always have access.</p>
+                {(builderAccess || []).map((a: any) => (
+                  <div key={a.user_id} className="flex items-center justify-between gap-3 p-2.5 border rounded-lg">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{a.email}</p>
+                      <p className="text-xs text-zinc-500">{a.role}{a.is_master ? " • master" : ""}</p>
+                    </div>
+                    {a.is_master ? (
+                      <Badge variant="default">Always on</Badge>
+                    ) : (
+                      <Toggle checked={!!a.builder_allowed} onChange={(v) => setBuilderAllowed(a.user_id, v)} />
+                    )}
+                  </div>
+                ))}
+                {(builderAccess || []).length === 0 && <p className="text-sm text-zinc-500">Loading users…</p>}
               </CardContent>
             </Card>
           </TabsContent>

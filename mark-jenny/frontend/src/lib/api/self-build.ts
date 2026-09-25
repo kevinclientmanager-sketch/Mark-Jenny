@@ -19,6 +19,7 @@ export const selfBuildApi = {
   files: (id: string) => api.get<{ files: Array<{ path?: string; name?: string; size?: number; [key: string]: unknown }> }>(`/self-build/${id}/files`),
   integrate: (id: string) => api.post<Record<string, unknown>>(`/self-build/${id}/integrate`, {}),
   rollback: (id: string) => api.post<Record<string, unknown>>(`/self-build/${id}/rollback`, {}),
+  access: () => api.get<{ allowed: boolean; is_master: boolean }>("/self-build/access"),
 };
 
 export const buildTargets = [

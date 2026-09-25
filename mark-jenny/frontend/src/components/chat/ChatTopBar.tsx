@@ -246,7 +246,7 @@ export function ChatTopBar({
   };
 
   return (
-    <header ref={topBarRef} className="h-14 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center gap-0.5 px-2" style={{ overflow: "visible" }}>
+    <header ref={topBarRef} className="h-14 shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center gap-0.5 px-2" style={{ overflow: "visible" }}>
       {/* Session tabs — chat/work: show chat tabs, browse: show browser sessions */}
       <div className="flex items-center gap-0.5 flex-1 min-w-0" style={{ overflow: "visible" }}>
         {isBrowseMode ? (

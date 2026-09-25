@@ -127,7 +127,7 @@ export default function ProjectDetailPage() {
         <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} chatData={chatData} />
         <div className={`flex-1 flex flex-col min-w-0 transition-all ${sidebarOpen ? "ml-64" : "ml-16"}`}>
           {/* Top bar with project name */}
-          <header className="h-10 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center px-4 gap-3">
+          <header className="h-14 shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40 flex items-center px-4 gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-600">
                 <FolderKanban className="h-3.5 w-3.5 text-white" />

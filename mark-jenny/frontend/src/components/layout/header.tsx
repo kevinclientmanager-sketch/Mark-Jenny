@@ -46,7 +46,7 @@ export function Header() {
   ];
 
   return (
-    <header className="h-16 shrink-0 border-b bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40">
+    <header className="h-14 shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 backdrop-blur-sm dark:bg-zinc-900/80 sticky top-0 z-40">
       <div className="flex h-full items-center justify-between px-4">
         <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           {titleFromPath(pathname)}

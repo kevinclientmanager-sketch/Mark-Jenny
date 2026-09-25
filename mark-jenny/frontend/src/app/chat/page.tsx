@@ -420,7 +420,7 @@ export default function ChatPage() {
         />
         <div className={`flex-1 flex flex-col min-w-0 transition-all ${sidebarOpen ? "ml-64" : "ml-16"}`}>
           <ChatTopBar
-            tabs={mode !== "browse" ? openTabs.map((t) => ({ id: t.id, title: t.title, active: t.id === activeChatId })) : undefined}
+            tabs={mode !== "browse" ? openTabs.map((t) => ({ id: t.id, title: t.title, active: t.id === activeChatId, pinned: pinned.includes(t.id) })) : undefined}
             onTabSelect={handleTabSelect}
             onTabClose={closeTab}
             onTabNew={handleNewTab}

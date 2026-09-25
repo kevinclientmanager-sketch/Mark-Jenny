@@ -25,6 +25,30 @@ def test_health(client):
     assert r.json()["status"] == "healthy"
 
 
+def test_capability_audit_and_policy_preflight(client):
+    token = _register_and_login(client)
+    h = _headers(token)
+
+    audit = client.get("/api/v1/features/audit", headers=h)
+    assert audit.status_code == 200
+    payload = audit.json()
+    assert payload["total"] == 48
+    assert len(payload["capabilities"]) == 48
+    assert payload["capabilities"][0]["number"] == 1
+    assert payload["capabilities"][-1]["number"] == 48
+
+    safe = client.post("/api/v1/features/policy/preflight", json={"action": "read project"}, headers=h)
+    assert safe.status_code == 200
+    assert safe.json()["allowed"] is True
+    assert safe.json()["approval_required"] is False
+
+    risky = client.post("/api/v1/features/policy/preflight", json={"action": "deploy project", "estimated_cost_usd": 10}, headers=h)
+    assert risky.status_code == 200
+    assert risky.json()["allowed"] is False
+    assert risky.json()["approval_required"] is True
+    assert risky.json()["risk_level"] == "high"
+
+
 def test_rate_limit(client):
     for _ in range(5):
         r = client.get("/health")

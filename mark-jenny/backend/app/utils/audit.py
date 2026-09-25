@@ -17,7 +17,9 @@ async def log_audit(
     success: bool = True,
     error_message: Optional[str] = None,
 ) -> AuditLog:
-    """Log an audit event."""
+    """Log an audit event using the shared typed audit vocabulary."""
+    if isinstance(action, str):
+        action = AuditAction(action)
     audit_log = AuditLog(
         action=action,
         resource_type=resource_type,

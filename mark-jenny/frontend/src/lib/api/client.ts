@@ -1,4 +1,6 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+// Use the same-origin proxy in deployed builds; direct backend URLs remain
+// available for desktop/self-hosted deployments through NEXT_PUBLIC_API_URL.
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 class ApiError extends Error {
   constructor(public status: number, message: string, public data?: unknown) {

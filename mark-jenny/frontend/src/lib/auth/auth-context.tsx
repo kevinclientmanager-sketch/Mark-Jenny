@@ -81,6 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = await api.get<User>('/auth/me');
       setUser(userData);
     } catch (err) {
+      // Stored token is dead (expired/invalid) — try a fresh auto-login before giving up
+      if (AUTO_LOGIN_DEMO.enabled) {
+        try {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          await fetchAccessToken(AUTO_LOGIN_DEMO.email, AUTO_LOGIN_DEMO.password);
+          const userData = await api.get<User>('/auth/me');
+          setUser(userData);
+          return;
+        } catch {
+          // fall through to logged-out state
+        }
+      }
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       setUser(null);

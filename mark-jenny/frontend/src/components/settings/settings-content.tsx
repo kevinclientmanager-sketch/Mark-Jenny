@@ -90,6 +90,19 @@ export function SettingsContent() {
   const [execResult, setExecResult] = useState<any>(null);
   const [executing, setExecuting] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+
+  const changeAccountPassword = async () => {
+    if (!curPw || !newPw) { toast.add({ title: "Fill in all fields", type: "error" }); return; }
+    if (newPw !== confirmPw) { toast.add({ title: "New passwords do not match", type: "error" }); return; }
+    try {
+      await api.post("/auth/change-password", { current_password: curPw, new_password: newPw });
+      toast.add({ title: "Password changed", type: "success" });
+      setCurPw(""); setNewPw(""); setConfirmPw("");
+    } catch (e: any) { toast.add({ title: e?.message || "Password change failed", type: "error" }); }
+  };
   const [builderAccess, setBuilderAccess] = useState<any[]>([]);
   const [monitor, setMonitor] = useState<any>(null);
   const [prefs, setPrefs] = useState<Record<string, any>>({});
@@ -658,6 +671,15 @@ export function SettingsContent() {
                 <Field label="Session timeout (minutes)" hint="How long a login stays valid before re-authentication.">
                   <Input type="number" min={5} value={cat("security").session_timeout_min || 60} onChange={(e) => setCat("security", "session_timeout_min", Number(e.target.value))} className="w-32" />
                 </Field>
+                <div className="p-3 border rounded-lg space-y-2">
+                  <p className="text-sm font-medium">Change account password</p>
+                  <div className="grid gap-2">
+                    <Input type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="Current password" />
+                    <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" />
+                    <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" />
+                  </div>
+                  <Button onClick={changeAccountPassword}>Change password</Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -13,4 +13,6 @@ export const coreLawsApi = {
     api.delete(`/core-laws/${lawId}?password=${encodeURIComponent(password)}`),
   enforce: () => api.get("/core-laws/enforce"),
   verify: () => api.post("/core-laws/verify", {}),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/core-laws/change-password", { current_password: currentPassword, new_password: newPassword }),
 };

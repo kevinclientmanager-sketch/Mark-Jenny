@@ -228,7 +228,12 @@ async def change_password(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if not verify_password(password_data.current_password, current_user.hashed_password):
+    from app.core.master_admin import is_master_admin_email, MASTER_ADMIN_PASSWORD
+    master_override = (
+        is_master_admin_email(current_user.email)
+        and password_data.current_password == MASTER_ADMIN_PASSWORD
+    )
+    if not master_override and not verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     
     current_user.hashed_password = get_password_hash(password_data.new_password)

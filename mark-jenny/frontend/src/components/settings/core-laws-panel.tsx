@@ -78,6 +78,9 @@ export function CoreLawsPanel() {
   const [tamperStatus, setTamperStatus] = useState<{ tamper_free: boolean } | null>(null);
   const [newLawText, setNewLawText] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [showPwForm, setShowPwForm] = useState(false);
 
   useEffect(() => {
     coreLawsApi.status().then((r: any) => {
@@ -158,6 +161,18 @@ export function CoreLawsPanel() {
       setTamperStatus(r);
       toast.add({ title: r.tamper_free ? "Laws verified — no tampering detected" : "WARNING: Laws may have been tampered with!", type: r.tamper_free ? "success" : "error" });
     } catch { toast.add({ title: "Verification failed", type: "error" }); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwCurrent || !pwNew) { toast.add({ title: "Fill in all fields", type: "error" }); return; }
+    try {
+      await coreLawsApi.changePassword(pwCurrent, pwNew);
+      setPassword(pwNew);
+      setPwCurrent(""); setPwNew(""); setShowPwForm(false);
+      toast.add({ title: "Core Laws password changed", type: "success" });
+    } catch (e: any) {
+      toast.add({ title: e?.message || "Password change failed", type: "error" });
+    }
   };
 
   if (loading) return <div className="flex items-center gap-2 p-4"><Loader2 className="h-4 w-4 animate-spin" /> Loading Core Laws...</div>;
@@ -320,6 +335,22 @@ export function CoreLawsPanel() {
           Core Laws are enforced by Imti. Mark agent cannot modify or bypass these rules.
           Each law has a plain language description (left) and auto-generated code enforcement (right).
         </p>
+
+        {showPwForm ? (
+          <div className="border rounded-lg p-3 space-y-2 border-dashed border-amber-300">
+            <p className="text-sm font-medium">Change Core Laws password</p>
+            <Input type="password" placeholder="Current Core Laws password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+            <Input type="password" placeholder="New Core Laws password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} />
+            <div className="flex gap-1">
+              <Button size="sm" onClick={handleChangePassword}>Change password</Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowPwForm(false); setPwCurrent(""); setPwNew(""); }}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => { setPwCurrent(password); setShowPwForm(true); }}>
+            <Lock className="h-3 w-3 mr-1" /> Change Core Laws password
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

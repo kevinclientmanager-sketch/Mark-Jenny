@@ -99,6 +99,11 @@ class CoreLawUpdate(BaseModel):
     code: str = ""
 
 
+class CoreLawsPasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
 @router.post("/setup")
 async def setup_core_laws(body: CoreLawsSetup, current_user: User = Depends(get_current_user)):
     """First-time setup: set password and initial laws."""
@@ -135,6 +140,20 @@ async def unlock_core_laws(body: CoreLawsUnlock, current_user: User = Depends(ge
 
     laws = _load_laws()
     return {"success": True, "laws": laws, "hash": _compute_laws_hash(laws)}
+
+
+@router.post("/change-password")
+async def change_core_laws_password(body: CoreLawsPasswordChange, current_user: User = Depends(get_current_user)):
+    """Change the Core Laws password (must know the current one)."""
+    stored_hash = _load_password_hash()
+    if stored_hash is None:
+        raise HTTPException(status_code=404, detail="Core Laws not configured yet")
+    if _hash_password(body.current_password) != stored_hash:
+        raise HTTPException(status_code=401, detail="Current Core Laws password is incorrect")
+    if not body.new_password or len(body.new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
+    _save_password_hash(body.new_password)
+    return {"success": True, "message": "Core Laws password changed"}
 
 
 @router.get("/status")

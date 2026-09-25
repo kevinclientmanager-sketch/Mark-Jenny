@@ -20,6 +20,7 @@ interface BrowserViewProps {
   sending: boolean;
   activeChatId: number | null;
   onFile: (file: File) => void;
+  onVoiceAsk?: (text: string) => Promise<string | null>;
 }
 
 interface TaskStep {
@@ -66,7 +67,7 @@ function extractBrowserUrl(messages: Message[]): string | null {
   return null;
 }
 
-export function BrowserView({ messages, sessions, onSend, sending, activeChatId, onFile }: BrowserViewProps) {
+export function BrowserView({ messages, sessions, onSend, sending, activeChatId, onFile, onVoiceAsk }: BrowserViewProps) {
   const [chatWidth, setChatWidth] = useState(45);
   const draggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -207,7 +208,7 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
         </div>
 
         <div className="shrink-0 border-t">
-          <ChatInput onSend={onSend} onFile={onFile} disabled={sending || !activeChatId} mode="browse" />
+          <ChatInput onSend={onSend} onFile={onFile} disabled={sending || !activeChatId} mode="browse" onVoiceAsk={onVoiceAsk} />
         </div>
       </div>
 

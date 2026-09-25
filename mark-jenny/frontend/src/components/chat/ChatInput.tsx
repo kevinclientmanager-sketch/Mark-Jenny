@@ -28,6 +28,7 @@ export function ChatInput({
   placeholder,
   mode = "chat",
   chips,
+  onVoiceAsk,
 }: {
   onSend: (text: string, opts?: { think?: boolean; model?: string }) => void;
   onFile?: (f: File) => void;
@@ -35,6 +36,7 @@ export function ChatInput({
   placeholder?: string;
   mode?: "chat" | "work" | "browse";
   chips?: { label: string; icon: React.ComponentType<{ className?: string }>; prompt: string }[];
+  onVoiceAsk?: (text: string) => Promise<string | null>;
 }) {
   const [text, setText] = useState("");
   const [think, setThink] = useState(false);
@@ -77,9 +79,8 @@ export function ChatInput({
   // ============================================================
 
   const startVoiceConversation = useCallback(() => {
-    // Create WebSocket connection
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/api/v1/voice/ws/voice`;
+    // Connect straight to the backend — Next.js dev rewrites do not proxy WebSocket upgrades
+    const wsUrl = `${API_BASE.replace(/^http/, "ws")}/voice/ws/voice`;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -334,6 +335,18 @@ export function ChatInput({
   const processVoiceText = async (text: string) => {
     setVoiceState("thinking");
 
+    // Ask the AI for a real reply (no more echoing the user's own words)
+    try {
+      if (onVoiceAsk) {
+        const reply = await onVoiceAsk(text);
+        if (reply && reply.trim()) {
+          setVoiceMessages((prev) => [...prev, { role: "assistant", text: reply, timestamp: Date.now() }]);
+          speakWithBrowser(reply);
+          return;
+        }
+      }
+    } catch {}
+
     try {
       const params = new URLSearchParams({ text, voice: "default", speed: "1" });
       const res = await fetch(`${API_BASE}/voice/synthesize?${params.toString()}`, {
@@ -345,11 +358,11 @@ export function ChatInput({
       if (data.audio) {
         playAudioBase64(data.audio, data.format);
       } else {
-        // Use browser TTS
-        speakWithBrowser(text);
+        // Backend has no TTS voice — speak the AI reply if we got one, else say so
+        speakWithBrowser("I heard you, but I could not generate a spoken reply right now.");
       }
     } catch {
-      speakWithBrowser(text);
+      speakWithBrowser("I heard you, but I could not generate a spoken reply right now.");
     }
   };
 

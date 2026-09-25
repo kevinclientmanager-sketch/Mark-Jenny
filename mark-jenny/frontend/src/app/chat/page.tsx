@@ -344,6 +344,32 @@ export default function ChatPage() {
     } catch (e) { toast.add({ title: "Upload failed", type: "error" }); }
   };
 
+  // Voice fallback: send transcript through the normal pipeline and return the AI reply text to speak
+  const handleVoiceAsk = async (text: string): Promise<string | null> => {
+    if (!activeChatId) return null;
+    try {
+      const sent: Message = await chatApi.sendMessage(activeChatId, { content: text, project_id: projectId });
+      await fetchMsgs(activeChatId);
+      // The assistant reply is generated asynchronously — poll until it lands
+      const sentId = (sent as any)?.id ?? 0;
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const msgs: Message[] = await chatApi.listMessages(activeChatId);
+        for (let j = msgs.length - 1; j >= 0; j--) {
+          const m = msgs[j];
+          if ((m as any).id > sentId && m.role === "ASSISTANT" && m.content && m.content.trim()) {
+            await fetchMsgs(activeChatId);
+            return m.content;
+          }
+        }
+      }
+      await fetchMsgs(activeChatId);
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleSuggestion = (prompt: string) => handleSend(prompt);
 
   const handleModeChange = async (m: "chat" | "work" | "browse") => {
@@ -414,6 +440,7 @@ export default function ChatPage() {
                 sending={sending}
                 activeChatId={activeChatId}
                 onFile={handleFile}
+                onVoiceAsk={handleVoiceAsk}
               />
             ) : (
               <>
@@ -451,7 +478,7 @@ export default function ChatPage() {
                       <MessageList messages={messages} chatId={activeChatId || 0} onMessagesChanged={() => fetchMsgs(activeChatId!)} />
                     )}
                   </div>
-                  <ChatInput onSend={handleSend} onFile={handleFile} disabled={sending || !activeChatId} mode={mode} chips={mode === "work" ? WORK_CHIPS : []} />
+                  <ChatInput onSend={handleSend} onFile={handleFile} disabled={sending || !activeChatId} mode={mode} chips={mode === "work" ? WORK_CHIPS : []} onVoiceAsk={handleVoiceAsk} />
                   {taskId && <div className="px-3 pb-1 text-xs text-zinc-500 text-center">Task #{taskId} {connected ? "● WS live" : "○ WS offline"}</div>}
                 </div>
                 {workOpen && (

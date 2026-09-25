@@ -495,6 +495,17 @@ export function ChatInput({
   return (
     <div className="border-t bg-white dark:bg-zinc-900 px-3 py-3">
       <div className="mx-auto w-full max-w-3xl">
+        {voiceActive ? (
+          <VoiceOrb
+            state={voiceState}
+            level={voiceLevel}
+            lastText={lastVoiceText}
+            muted={voiceMuted}
+            onMuteToggle={toggleVoiceMute}
+            onEnd={stopVoiceConversation}
+          />
+        ) : (
+        <>
         <div className="mb-2 flex flex-col items-center gap-1.5">
           {chips && chips.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5">
@@ -600,17 +611,9 @@ export function ChatInput({
               ? "Browse mode — Mark opens the browser, searches, reads pages, and brings back answers."
               : "Wave icon = voice conversation. Talk naturally to Mark or Imti."}
         </p>
+        </>
+        )}
       </div>
-      {voiceActive && (
-        <VoiceOrb
-          state={voiceState}
-          level={voiceLevel}
-          lastText={lastVoiceText}
-          muted={voiceMuted}
-          onMuteToggle={toggleVoiceMute}
-          onEnd={stopVoiceConversation}
-        />
-      )}
     </div>
   );
 }

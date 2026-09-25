@@ -28,7 +28,7 @@ export function VoiceOrb({
     state === "listening" ? (muted ? "Muted" : "Listening…") : state === "thinking" ? "Thinking…" : state === "speaking" ? "Speaking…" : "Connecting…";
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2 py-2">
       {lastText && (
         <div className="max-w-[220px] rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300 shadow-lg backdrop-blur">
           <p className="line-clamp-3">{lastText}</p>

@@ -412,7 +412,6 @@ export function SettingsContent() {
     { id: "computer", label: "Computer", icon: Monitor },
     { id: "security", label: "Security", icon: Lock },
     { id: "core-laws", label: "Core Laws", icon: ShieldAlert },
-    { id: "blueprints", label: "Blueprints", icon: BookOpen },
     { id: "advanced", label: "Advanced", icon: Network },
     { id: "users", label: "Users", icon: Users },
     { id: "data", label: "Data", icon: Database },
@@ -703,18 +702,6 @@ export function SettingsContent() {
 
           <TabsContent value="core-laws">
             <CoreLawsPanel />
-          </TabsContent>
-
-          <TabsContent value="blueprints">
-            <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4" /> Blueprints</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-zinc-500">Reusable task templates. Define once, run anytime.</p>
-                <div className="p-4 border-2 border-dashed rounded-lg text-center text-zinc-400">
-                  <BookOpen className="h-8 w-8 mx-auto mb-2" />
-                  <p className="text-sm">No blueprints yet. Create one by saving a task as a blueprint.</p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="advanced">

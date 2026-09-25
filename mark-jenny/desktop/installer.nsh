@@ -8,14 +8,14 @@
 
 !macro customInit
   ; Check if Mark-Imti is already running
-  nsExec::ExecToLog 'tasklist /FI "IMAGENAME eq mark-imti-server.exe" /NH'
+  nsExec::ExecToLog 'tasklist /FI "IMAGENAME eq mark-jenny-server.exe" /NH'
   Pop $0
   ${If} $0 == "0"
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "Mark-Imti is currently running.$\n$\nDo you want to close it and continue installation?" IDOK closeApp
     Abort
     closeApp:
-      nsExec::ExecToLog 'taskkill /F /IM mark-imti-server.exe'
-      nsExec::ExecToLog 'taskkill /F /IM MARK-IMTI.exe'
+      nsExec::ExecToLog 'taskkill /F /IM mark-jenny-server.exe'
+      nsExec::ExecToLog 'taskkill /F /IM mark-jenny.exe'
       Sleep 1000
   ${EndIf}
 !macroend
@@ -39,14 +39,14 @@
   MessageBox MB_YESNO|MB_ICONQUESTION "Installation complete!$\n$\nDo you want to launch Mark-Imti now?" IDYES launchApp
   Goto done
   launchApp:
-    Exec '"$INSTDIR\MARK-IMTI.exe"'
+    Exec '"$INSTDIR\mark-jenny.exe"'
   done:
 !macroend
 
 !macro customUnInstall
   ; Stop running instances
-  nsExec::ExecToLog 'taskkill /F /IM mark-imti-server.exe'
-  nsExec::ExecToLog 'taskkill /F /IM MARK-IMTI.exe'
+  nsExec::ExecToLog 'taskkill /F /IM mark-jenny-server.exe'
+  nsExec::ExecToLog 'taskkill /F /IM mark-jenny.exe'
   
   ; Ask to keep data
   MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to keep your data (chats, settings, extensions)?" IDYES keepData

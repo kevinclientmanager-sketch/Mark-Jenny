@@ -1,5 +1,5 @@
 const fs=require('fs'), path=require('path');
-const root='MARK-IMTI';
+const root='mark-jenny';
 const phases=[
   {phase:0, name:"Repo", files:["frontend/package.json","backend/app/main.py","FEATURE_MANIFEST.md"]},
   {phase:1, name:"Auth/DB/Shell", files:["backend/app/models/user.py","backend/app/api/v1/endpoints/auth.py","frontend/src/app/layout.tsx","frontend/src/components/layout/sidebar.tsx"]},
@@ -20,7 +20,7 @@ const phases=[
   {phase:16, name:"QA/Packaging", files:["backend/tests/test_api.py","Dockerfile","frontend/src-tauri/tauri.conf.json","docs/CONSOLIDATED_SUPER_MARK_SPEC.md"]},
 ];
 let allPass=true;
-console.log("=== Mark-Imti FEATURE COMPLETENESS AUDIT ===\n");
+console.log("=== MARK-IMTI FEATURE COMPLETENESS AUDIT ===\n");
 for(const ph of phases){
   let pass=true;
   for(const f of ph.files){

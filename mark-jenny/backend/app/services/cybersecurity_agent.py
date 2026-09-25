@@ -110,6 +110,14 @@ Also provide:
         response = await ModelCaller.call(prompt, self.SECURITY_EXPERT, temperature=0.1)
 
         vulnerabilities = self._parse_vulnerabilities(response)
+        import re
+        secret_patterns = [
+            (r"(?i)(api[_-]?key|secret|token|password)\\s*[:=]\\s*['\"][^'\"]{12,}['\"]", "Potential hard-coded secret", "high"),
+            (r"-----BEGIN (?:RSA|EC|OPENSSH|PRIVATE) KEY-----", "Private key material in source", "critical"),
+        ]
+        for pattern, name, severity in secret_patterns:
+            if re.search(pattern, code):
+                vulnerabilities.insert(0, {"name": name, "severity": severity, "confidence": 99, "cwe": "CWE-798", "location": filename, "fix": "Move the secret to the deployment secret manager and rotate it."})
 
         return {
             "success": True,
@@ -119,6 +127,37 @@ Also provide:
             "analysis": response,
             "model_used": ModelCaller.get_model_info(),
         }
+
+    async def security_posture(self, url: str) -> Dict[str, Any]:
+        """Run a safe, passive web posture check; never sends exploit payloads."""
+        from urllib.parse import urlparse
+        import ipaddress
+        parsed = urlparse(url if "://" in url else f"https://{url}")
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return {"success": False, "error": "Only http and https URLs are supported."}
+        try:
+            resolved = ipaddress.ip_address(parsed.hostname)
+            if resolved.is_private or resolved.is_loopback or resolved.is_link_local or resolved.is_reserved:
+                return {"success": False, "error": "Private and loopback targets are blocked."}
+        except ValueError:
+            pass
+        import httpx
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True, verify=True) as client:
+            response = await client.get(parsed.geturl(), headers={"User-Agent": "Mark-Jenny-Mythos-Safety/1.0"})
+        headers = {key.lower(): value for key, value in response.headers.items()}
+        required = {
+            "strict-transport-security": parsed.scheme == "https",
+            "content-security-policy": "content-security-policy" in headers,
+            "x-content-type-options": headers.get("x-content-type-options", "").lower() == "nosniff",
+            "referrer-policy": "referrer-policy" in headers,
+            "permissions-policy": "permissions-policy" in headers,
+        }
+        cookies = []
+        for cookie in response.headers.get_list("set-cookie"):
+            lowered = cookie.lower()
+            cookies.append({"secure": "secure" in lowered, "httponly": "httponly" in lowered, "samesite": "samesite=" in lowered})
+        findings = [{"control": name, "severity": "medium" if name in {"content-security-policy", "strict-transport-security"} else "low", "message": "Missing or weak security control."} for name, ok in required.items() if not ok]
+        return {"success": True, "mode": "passive", "url": str(response.url), "status_code": response.status_code, "security_headers": required, "cookies": cookies, "findings": findings, "risk_score": min(100, len(findings) * 12), "safe_for_users": not any(item["severity"] == "high" for item in findings)}
 
     # ============================================================
     # 2. WHOLE CODEBASE SECURITY AUDIT

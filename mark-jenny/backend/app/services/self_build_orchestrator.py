@@ -1,18 +1,18 @@
 """
 Self-Build Orchestrator — The heart of Mark-Imti's self-building system.
-User describes what they want in plain language to Imti.
-Imti coordinates Mark (builder agent) to build it in a sandbox.
-Imti tests, validates, versions, and integrates when ready.
+User describes what they want in plain language to Jenny.
+Jenny coordinates Mark (builder agent) to build it in a sandbox.
+Jenny tests, validates, versions, and integrates when ready.
 
 Flow:
 1. User writes plain language request in chat
-2. Imti parses intent, breaks into tasks
+2. Jenny parses intent, breaks into tasks
 3. Mark builds code in isolated sandbox
-4. Imti monitors, tests, reviews each change
+4. Jenny monitors, tests, reviews each change
 5. Version snapshots at every step
-6. If anything breaks, Imti rolls back
+6. If anything breaks, Jenny rolls back
 7. Live preview in right panel (side-by-side)
-8. When approved, Imti merges sandbox into live app
+8. When approved, Jenny merges sandbox into live app
 """
 import asyncio
 import json
@@ -32,7 +32,7 @@ from app.core.config import get_settings
 settings = get_settings()
 
 # Directories
-DATA_DIR = Path(os.environ.get("MARK_IMTI_DATA", "."))
+DATA_DIR = Path(os.environ.get("MARK_JENNY_DATA", "."))
 SANDBOX_DIR = DATA_DIR / "sandbox"
 VERSIONS_DIR = DATA_DIR / "versions"
 LIVE_DIR = DATA_DIR / "live"
@@ -44,7 +44,7 @@ for d in [SANDBOX_DIR, VERSIONS_DIR, LIVE_DIR, BUILD_LOGS_DIR]:
 
 class BuildStatus(str, Enum):
     IDLE = "idle"
-    PARSEING = "parsing"
+    PARSING = "parsing"
     BUILDING = "building"
     TESTING = "testing"
     REVIEWING = "reviewing"
@@ -75,7 +75,7 @@ class BuildStep:
         self.status = "pending"  # pending, running, passed, failed
         self.code = ""
         self.test_result = None
-        self.imti_review = None
+        self.jenny_review = None
         self.started_at = None
         self.completed_at = None
 
@@ -87,7 +87,7 @@ class BuildStep:
             "target": self.target,
             "status": self.status,
             "test_result": self.test_result,
-            "imti_review": self.imti_review,
+            "jenny_review": self.jenny_review,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
@@ -181,8 +181,8 @@ class SelfBuildOrchestrator:
 
     async def _parse_request(self, session: BuildSession) -> List[BuildStep]:
         """Parse user's plain language into build steps."""
-        self._log(session, "Imti: Analyzing your request...")
-        session.status = BuildStatus.PARSEING
+        self._log(session, "Jenny: Analyzing your request...")
+        session.status = BuildStatus.PARSING
         await self._emit("status_changed", {"session_id": session.session_id, "status": "building"})
 
         request = session.user_request.lower()
@@ -278,7 +278,7 @@ class SelfBuildOrchestrator:
                 target="main.py",
             ))
 
-        self._log(session, f"Imti: I identified {len(steps)} steps to build:")
+        self._log(session, f"Jenny: I identified {len(steps)} steps to build:")
         for step in steps:
             self._log(session, f"  → {step.description}")
 
@@ -306,16 +306,16 @@ class SelfBuildOrchestrator:
 
             # Step 3: Test
             session.status = BuildStatus.TESTING
-            self._log(session, "Imti: Now testing everything...")
+            self._log(session, "Jenny: Now testing everything...")
             test_results = await self._test_sandbox(session)
 
             # Step 4: Review
             session.status = BuildStatus.REVIEWING
-            self._log(session, "Imti: Reviewing code quality...")
+            self._log(session, "Jenny: Reviewing code quality...")
             review = await self._review_sandbox(session)
 
             if not review["passed"]:
-                self._log(session, f"Imti: Found {len(review['issues'])} issues. Sending back to Mark...")
+                self._log(session, f"Jenny: Found {len(review['issues'])} issues. Sending back to Mark...")
                 # Mark fixes issues
                 for issue in review["issues"][:5]:
                     await self._fix_issue(session, issue)
@@ -332,15 +332,15 @@ class SelfBuildOrchestrator:
             self._stats["successful"] += 1
             self._stats["files_created"] += sum(1 for s in steps if s.change_type == ChangeType.NEW_FILE)
 
-            self._log(session, "Imti: Build complete! Everything looks good.")
-            self._log(session, f"Imti: {len(steps)} steps done, {test_results.get('passed', 0)} tests passed")
+            self._log(session, "Jenny: Build complete! Everything looks good.")
+            self._log(session, f"Jenny: {len(steps)} steps done, {test_results.get('passed', 0)} tests passed")
             await self._emit("build_complete", {"session_id": session.session_id, "session": session.to_dict()})
 
         except Exception as e:
             session.status = BuildStatus.FAILED
             session.error = str(e)
             self._stats["failed"] += 1
-            self._log(session, f"Imti: Build failed — {str(e)}")
+            self._log(session, f"Jenny: Build failed — {str(e)}")
             await self._emit("build_error", {"session_id": session.session_id, "error": str(e)})
 
     async def _build_step(self, session: BuildSession, step: BuildStep) -> bool:
@@ -532,8 +532,8 @@ async def endpoint_post(req: Request):
     # === PHASE 4: TESTING ===
 
     async def _test_sandbox(self, session: BuildSession) -> Dict:
-        """Imti tests the sandbox build."""
-        self._log(session, "Imti: Running tests in sandbox...")
+        """Jenny tests the sandbox build."""
+        self._log(session, "Jenny: Running tests in sandbox...")
         results = {"passed": 0, "failed": 0, "errors": []}
 
         for step in session.steps:
@@ -553,18 +553,18 @@ async def endpoint_post(req: Request):
                 try:
                     compile(content, str(target), "exec")
                     results["passed"] += 1
-                    self._log(session, f"Imti: {step.target} — syntax OK ✓")
+                    self._log(session, f"Jenny: {step.target} — syntax OK ✓")
                 except SyntaxError as e:
                     results["errors"].append(f"{step.target}: Syntax error at line {e.lineno}")
                     results["failed"] += 1
-                    self._log(session, f"Imti: {step.target} — syntax error ✗")
+                    self._log(session, f"Jenny: {step.target} — syntax error ✗")
 
             # Syntax check for JavaScript
             elif target.suffix == ".js":
                 # Basic check
                 if "function" in content or "=>" in content or "const" in content:
                     results["passed"] += 1
-                    self._log(session, f"Imti: {step.target} — structure OK ✓")
+                    self._log(session, f"Jenny: {step.target} — structure OK ✓")
                 else:
                     results["passed"] += 1  # Simple check
 
@@ -572,7 +572,7 @@ async def endpoint_post(req: Request):
             elif target.suffix == ".html":
                 if "<html" in content.lower() and "</html>" in content.lower():
                     results["passed"] += 1
-                    self._log(session, f"Imti: {step.target} — valid HTML ✓")
+                    self._log(session, f"Jenny: {step.target} — valid HTML ✓")
                 else:
                     results["errors"].append(f"{step.target}: Missing html tags")
                     results["failed"] += 1
@@ -580,13 +580,13 @@ async def endpoint_post(req: Request):
             else:
                 results["passed"] += 1
 
-        self._log(session, f"Imti: Tests done — {results['passed']} passed, {results['failed']} failed")
+        self._log(session, f"Jenny: Tests done — {results['passed']} passed, {results['failed']} failed")
         return results
 
-    # === PHASE 5: Imti REVIEWS ===
+    # === PHASE 5: JENNY REVIEWS ===
 
     async def _review_sandbox(self, session: BuildSession) -> Dict:
-        """Imti reviews code quality."""
+        """Jenny reviews code quality."""
         issues = []
 
         for step in session.steps:
@@ -604,7 +604,7 @@ async def endpoint_post(req: Request):
                 issues.append({"step": step.step_id, "type": "size", "message": "File is very large"})
 
         passed = len(issues) == 0
-        self._log(session, f"Imti: Review complete — {'PASS ✓' if passed else f'{len(issues)} issues found'}")
+        self._log(session, f"Jenny: Review complete — {'PASS ✓' if passed else f'{len(issues)} issues found'}")
 
         return {"passed": passed, "issues": issues}
 
@@ -623,7 +623,7 @@ async def endpoint_post(req: Request):
 
         if session.sandbox_path.exists():
             shutil.copytree(session.sandbox_path, snapshot_path)
-            self._log(session, f"Imti: Version snapshot created — v{version_num}")
+            self._log(session, f"Jenny: Version snapshot created — v{version_num}")
             session.rollback_version = str(snapshot_path)
 
         self._stats["files_created"] += len(list(session.sandbox_path.rglob("*")))
@@ -631,20 +631,20 @@ async def endpoint_post(req: Request):
     # === PHASE 7: INTEGRATION ===
 
     async def integrate_to_live(self, session_id: str) -> Dict:
-        """Imti integrates sandbox into live app after approval."""
+        """Jenny integrates sandbox into live app after approval."""
         session = self.sessions.get(session_id)
         if not session:
             return {"success": False, "error": "Session not found"}
 
         session.status = BuildStatus.INTEGRATING
-        self._log(session, "Imti: Integrating into live application...")
+        self._log(session, "Jenny: Integrating into live application...")
 
         try:
             # Copy sandbox to live
             if session.sandbox_path.exists():
                 shutil.copytree(session.sandbox_path, LIVE_DIR, dirs_exist_ok=True)
 
-            self._log(session, "Imti: Integration complete! ✓")
+            self._log(session, "Jenny: Integration complete! ✓")
             await self._emit("integrated", {"session_id": session_id})
             return {"success": True, "message": "Integrated to live"}
 
@@ -654,19 +654,19 @@ async def endpoint_post(req: Request):
             return {"success": False, "error": str(e)}
 
     async def rollback(self, session_id: str) -> Dict:
-        """Imti rolls back to previous version if something breaks."""
+        """Jenny rolls back to previous version if something breaks."""
         session = self.sessions.get(session_id)
         if not session:
             return {"success": False, "error": "Session not found"}
 
         session.status = BuildStatus.ROLLING_BACK
-        self._log(session, "Imti: Rolling back to previous version...")
+        self._log(session, "Jenny: Rolling back to previous version...")
 
         try:
             if session.rollback_version and Path(session.rollback_version).exists():
                 shutil.copytree(session.rollback_version, LIVE_DIR, dirs_exist_ok=True)
                 self._stats["rollbacks"] += 1
-                self._log(session, "Imti: Rollback complete ✓")
+                self._log(session, "Jenny: Rollback complete ✓")
                 return {"success": True, "message": "Rolled back to previous version"}
             else:
                 return {"success": False, "error": "No previous version to rollback to"}

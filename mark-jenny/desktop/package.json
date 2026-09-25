@@ -1,5 +1,5 @@
 {
-  "name": "MARK-IMTI",
+  "name": "mark-imti",
   "version": "1.0.0",
   "description": "Mark-Imti — Autonomous AI Operating Platform",
   "main": "main.js",
@@ -12,7 +12,7 @@
     "build:installer": "electron-builder --win nsis"
   },
   "build": {
-    "appId": "com.markimti.desktop",
+    "appId": "com.markjenny.desktop",
     "productName": "Mark-Imti",
     "directories": {
       "output": "dist"

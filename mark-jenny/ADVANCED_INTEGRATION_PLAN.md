@@ -65,7 +65,7 @@
 
 ---
 
-## PART 2: CAPABILITY MAPPING FOR Mark-Imti
+## PART 2: CAPABILITY MAPPING FOR MARK-IMTI
 
 ### From GPT-6 Astra → Mark-Imti Features
 
@@ -168,10 +168,10 @@
 - Adaptive Reasoning control (auto/fast/balanced/deep)
 
 ### Chat Integration
-- Imti detects when user needs deep analysis
+- Jenny detects when user needs deep analysis
 - Routes to appropriate engine
 - Shows reasoning process in right panel
-- Imti reviews and validates results
+- Jenny reviews and validates results
 
 ### Right Panel Integration
 - Live reasoning visualization
@@ -186,7 +186,7 @@
 ```
 User Request (plain language)
     ↓
-Imti (Intent Parser)
+Jenny (Intent Parser)
     ↓
 ┌─────────────────────────────────────┐
 │  Deep Analysis Engine              │
@@ -212,7 +212,7 @@ Imti (Intent Parser)
 │  └── Research Synthesizer          │
 └─────────────────────────────────────┘
     ↓
-Imti (Quality Check + Review)
+Jenny (Quality Check + Review)
     ↓
 Result to User + Right Panel Preview
 ```
@@ -234,7 +234,7 @@ Result to User + Right Panel Preview
 
 ---
 
-## PART 8: WHAT Mark-Imti WILL BE ABLE TO DO
+## PART 8: WHAT MARK-IMTI WILL BE ABLE TO DO
 
 After implementation:
 

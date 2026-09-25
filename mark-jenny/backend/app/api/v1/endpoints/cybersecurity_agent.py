@@ -2,12 +2,14 @@
 Cybersecurity Agent API — Mythos-level security analysis.
 Routes: /api/v1/cybersecurity-agent/
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from app.services.cybersecurity_agent import cybersecurity_agent
+from app.core.security import get_current_user
+from app.models.user import User
 
-router = APIRouter(tags=["Cybersecurity Agent"])
+router = APIRouter(tags=["Cybersecurity Agent"], dependencies=[Depends(get_current_user)])
 
 
 class CodeScanRequest(BaseModel):
@@ -41,11 +43,20 @@ class SiteSafetyRequest(BaseModel):
 
 # 1. Scan code for vulnerabilities
 @router.post("/scan-code")
-async def scan_code(req: CodeScanRequest):
+async def scan_code(req: CodeScanRequest, current_user: User = Depends(get_current_user)):
+
     try:
         return await cybersecurity_agent.scan_code(req.code, req.filename, req.language)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/security-posture")
+async def security_posture(req: WebAuditRequest, current_user: User = Depends(get_current_user)):
+    try:
+        return await cybersecurity_agent.security_posture(req.url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # 2. Scan entire codebase
@@ -118,6 +129,11 @@ async def status():
             "Patch generation with code diffs",
             "Continuous security loop",
             "Attack surface mapping",
+            "Passive security posture checks",
+            "Security-header and cookie control analysis",
+            "Hard-coded secret detection before AI analysis",
+            "SSRF-safe public-target validation",
+            "Defensive-only analysis with no exploit payload execution",
         ],
         "model": ModelCaller.get_model_info(),
     }

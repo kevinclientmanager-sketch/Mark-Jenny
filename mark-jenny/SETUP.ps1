@@ -1,6 +1,6 @@
-# Mark-Imti - Install dependencies (run once after cloning)
+# MARK-IMTI - Install dependencies (run once after cloning)
 $Root = $PSScriptRoot
-Write-Host "=== Mark-Imti SETUP ==="
+Write-Host "=== MARK-IMTI SETUP ==="
 Write-Host ""
 
 # 1. Backend venv

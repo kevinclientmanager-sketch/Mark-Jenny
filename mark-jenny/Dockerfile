@@ -1,4 +1,4 @@
-# MARK JENNY - Production Web Deployment
+# MARK-IMTI - Production Web Deployment
 FROM node:20-alpine AS frontend
 WORKDIR /app/frontend
 COPY frontend/package*.json ./

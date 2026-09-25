@@ -58,8 +58,8 @@ const AGENTS = [
 ] as const;
 
 const WORKSPACE_NAV = [
-  // Projects belong to Mark (work), Schedule belongs to Imti (chat)
-  { href: "/projects", label: "Projects", icon: FilePlus2, modes: ["work", "browse"] },
+  // Library holds Mark's finished builds; Schedule belongs to Imti (chat)
+  { href: "/library", label: "Library", icon: LibraryIcon, modes: ["chat", "work", "browse"] },
   { href: "/scheduled", label: "Scheduled", icon: CalendarClock, modes: ["chat", "browse"] },
   { href: "/skills", label: "Skills", icon: Sparkles, modes: ["chat", "work", "browse"] },
 ] as const;
@@ -518,11 +518,11 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
           ) : chatData.mode === "work" ? (
             <>
               <button
-                onClick={() => router.push("/library")}
+                onClick={() => chatData.onNewProject()}
                 className="mb-2 flex h-9 w-full items-center gap-2 rounded-lg bg-zinc-900/5 px-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-900/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15"
               >
-                <LibraryIcon className="h-4 w-4" />
-                Library
+                <FilePlus2 className="h-4 w-4" />
+                New project
               </button>
               {chatData.projects.length === 0 ? (
                 <p className="px-3 py-1 text-xs text-zinc-400">No projects yet.</p>

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, AudioWaveform, Loader2, Square, Sparkles, Mic, MicOff, Phone, PhoneOff, Gamepad2, Trophy, Brain, Eye, Shield, Zap } from "lucide-react";
 import { plusPromptTemplates, PlusAction, PlusMenu } from "./PlusMenu";
+import { VoiceOrb } from "./VoiceOrb";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -134,6 +135,7 @@ export function ChatInput({
   const stopVoiceConversation = useCallback(() => {
     setVoiceActive(false);
     setVoiceState("idle");
+    setVoiceMuted(false);
     stopListening();
     wsRef.current?.close();
     wsRef.current = null;
@@ -457,114 +459,34 @@ export function ChatInput({
   };
 
   // ============================================================
-  // VOICE CONVERSATION UI
+  // VOICE CONVERSATION — floating orb (ChatGPT-style), composer stays usable
   // ============================================================
 
-  if (voiceActive) {
-    return (
-      <div className="border-t bg-gradient-to-b from-zinc-900 to-black px-3 py-4">
-        <div className="mx-auto max-w-3xl">
-          {/* Voice conversation display */}
-          <div className="mb-4 max-h-[300px] overflow-y-auto space-y-2 px-2">
-            {voiceMessages.length === 0 && (
-              <div className="text-center text-zinc-400 text-sm py-8">
-                <AudioWaveform className="h-8 w-8 mx-auto mb-2 animate-pulse text-emerald-400" />
-                <p>Speak naturally — I&apos;m listening</p>
-              </div>
-            )}
-            {voiceMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "rounded-lg px-3 py-2 text-sm max-w-[85%]",
-                  msg.role === "user"
-                    ? "ml-auto bg-emerald-600 text-white"
-                    : "mr-auto bg-zinc-700 text-zinc-100"
-                )}
-              >
-                {msg.text}
-              </div>
-            ))}
-          </div>
+  const [voiceMuted, setVoiceMuted] = useState(false);
 
-          {/* Voice level & controls */}
-          <div className="flex items-center gap-3">
-            {/* Level indicator */}
-            <div className="flex-1">
-              <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full transition-[width] duration-75 rounded-full"
-                  style={{
-                    width: `${voiceLevel || (voiceState === "listening" ? 15 : voiceState === "thinking" ? 50 : voiceState === "speaking" ? 80 : 0)}%`,
-                    backgroundColor: voiceState === "thinking" ? "#f59e0b" : voiceState === "speaking" ? "#10b981" : "#6b7280",
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-zinc-500 mt-1 text-center">
-                {voiceState === "listening" && "Listening…"}
-                {voiceState === "thinking" && "Thinking…"}
-                {voiceState === "speaking" && "Speaking…"}
-                {voiceState === "idle" && "Connecting…"}
-              </p>
-            </div>
+  const toggleVoiceMute = () => {
+    if (voiceState === "listening") {
+      stopListening();
+      setVoiceState("idle");
+      setVoiceMuted(true);
+    } else {
+      if (useBrowserSTT) startBrowserVoice();
+      else startListening();
+      setVoiceState("listening");
+      setVoiceMuted(false);
+    }
+  };
 
-            {/* Mute/unmute */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-10 w-10 rounded-full text-zinc-400 hover:text-white"
-              onClick={() => {
-                if (voiceState === "listening") {
-                  stopListening();
-                  setVoiceState("idle");
-                } else {
-                  if (useBrowserSTT) startBrowserVoice();
-                  else startListening();
-                  setVoiceState("listening");
-                }
-              }}
-              title={voiceState === "listening" ? "Mute" : "Unmute"}
-            >
-              {voiceState === "listening" ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-            </Button>
+  // Stop voice when switching toggles (chat / work / browse) — one conversation at a time
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    if (modeRef.current !== mode) {
+      modeRef.current = mode;
+      stopVoiceConversation();
+    }
+  }, [mode, stopVoiceConversation]);
 
-            {/* End call */}
-            <Button
-              size="icon"
-              variant="destructive"
-              className="h-10 w-10 rounded-full"
-              onClick={stopVoiceConversation}
-              title="End voice conversation"
-            >
-              <PhoneOff className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Quick text input during voice */}
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="Or type a message…"
-              className="flex-1 rounded-full bg-zinc-800 border-zinc-700 text-white text-sm px-4 py-2 placeholder:text-zinc-500"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                  const msg = e.currentTarget.value.trim();
-                  e.currentTarget.value = "";
-                  setVoiceMessages((prev) => [...prev, { role: "user", text: msg, timestamp: Date.now() }]);
-
-                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(JSON.stringify({ type: "text", text: msg }));
-                  } else {
-                    processVoiceText(msg);
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const lastVoiceText = voiceMessages.length > 0 ? voiceMessages[voiceMessages.length - 1]?.text : undefined;
 
   // ============================================================
   // NORMAL TEXT INPUT
@@ -679,6 +601,16 @@ export function ChatInput({
               : "Wave icon = voice conversation. Talk naturally to Mark or Imti."}
         </p>
       </div>
+      {voiceActive && (
+        <VoiceOrb
+          state={voiceState}
+          level={voiceLevel}
+          lastText={lastVoiceText}
+          muted={voiceMuted}
+          onMuteToggle={toggleVoiceMute}
+          onEnd={stopVoiceConversation}
+        />
+      )}
     </div>
   );
 }

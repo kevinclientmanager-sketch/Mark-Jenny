@@ -198,7 +198,7 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
           ) : (
             messages.map((msg) => (
               <div key={msg.id} className={cn("flex", msg.role === "USER" ? "justify-end" : "justify-start")}>
-                <div className={cn("max-w-[85%] rounded-lg px-3 py-2 text-sm", msg.role === "USER" ? "bg-blue-600 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100")}>
+                <div className={cn("max-w-[85%] rounded-lg px-3 py-2 text-sm", msg.role === "USER" ? "bg-sky-500 dark:bg-sky-600 text-white font-medium shadow-sm shadow-sky-500/20" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100")}>
                   <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                 </div>
               </div>

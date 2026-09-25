@@ -173,7 +173,7 @@ export function MessageList({
                         <div
                           onClick={() => (menuOpen ? closeMenu() : setMenuId(m.id))}
                           title="Click for options"
-                          className="cursor-pointer rounded-2xl bg-zinc-900 px-4 py-3 text-sm whitespace-pre-wrap break-words text-white dark:bg-zinc-700 dark:text-zinc-100"
+                          className="cursor-pointer rounded-2xl bg-sky-500 dark:bg-sky-600 px-4 py-3 text-sm font-medium whitespace-pre-wrap break-words text-white shadow-sm shadow-sky-500/20"
                         >
                           {m.content || ""}
                         </div>

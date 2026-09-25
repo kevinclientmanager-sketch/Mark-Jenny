@@ -193,6 +193,7 @@ export default function ChatPage() {
   }, [projectId, openTab]);
 
   const closeTab = useCallback((chatId: number) => {
+    if (pinned.includes(chatId)) return; // Pinned tabs can't close — unpin first
     setOpenTabs((prev) => {
       const next = prev.filter((t) => t.id !== chatId);
       if (activeChatId === chatId && next.length > 0) {
@@ -208,7 +209,7 @@ export default function ChatPage() {
       }
       return next;
     });
-  }, [activeChatId]);
+  }, [activeChatId, pinned]);
 
   const handleTabSelect = useCallback((chatId: number) => {
     setActiveChatId(chatId);

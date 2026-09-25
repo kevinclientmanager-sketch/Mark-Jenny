@@ -223,7 +223,7 @@ export function ChatTopBar({
               className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               {tab.pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-              {tab.pinned ? "Unpin" : "Pin to top"}
+              {tab.pinned ? "Unpin" : "Pin"}
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onToggleMute?.(tab.id); setMenuTab(null); }}
@@ -232,6 +232,9 @@ export function ChatTopBar({
               {tab.muted ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
               {tab.muted ? "Unmute" : "Mute"}
             </button>
+            {/* Close — hidden for pinned tabs (unpin first) */}
+            {!tab.pinned && (
+            <>
             <div className="border-t border-zinc-200 dark:border-zinc-700 my-0.5" />
             <button
               onClick={(e) => { e.stopPropagation(); onDeleteTab?.(tab.id); setMenuTab(null); }}
@@ -239,6 +242,8 @@ export function ChatTopBar({
             >
               <Trash2 className="h-3 w-3" /> Close
             </button>
+            </>
+            )}
           </div>
         )}
       </div>

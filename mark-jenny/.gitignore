@@ -53,3 +53,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+# Self-builder runtime dirs (sandbox output, versions, logs, live preview)
+backend/sandbox/
+backend/versions/
+backend/build_logs/
+backend/live/
+*.db
+*.db-journal

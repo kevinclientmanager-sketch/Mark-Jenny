@@ -43,6 +43,20 @@ const smartActions: {id: PlusAction; label: string; icon: any; desc: string; col
 export function PlusMenu({ onSelect, onFilePick, mode }: { onSelect: (id: PlusAction)=>void; onFilePick?: (f: File)=>void; mode?: "chat" | "work" | "browse" }) {
   const isBrowse = mode === "browse";
 
+  const pickFile = (id: PlusAction, accept: string, capture?: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    if (capture) (input as any).capture = capture;
+    input.onchange = (e: any) => { const f = e.target.files?.[0]; if (f && onFilePick) onFilePick(f); onSelect(id); };
+    input.click();
+  };
+
+  const browseFiles = [
+    { id: "camera" as PlusAction, label: "Camera", icon: Camera, desc: "Take photo" },
+    { id: "picture" as PlusAction, label: "Picture", icon: ImageIcon, desc: "Upload image" },
+  ];
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -53,20 +67,25 @@ export function PlusMenu({ onSelect, onFilePick, mode }: { onSelect: (id: PlusAc
         +
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 max-h-80 overflow-auto p-1">
-        {isBrowse && (
+        {isBrowse ? (
           <>
             <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-purple-500 flex items-center gap-1.5">
               <Brain className="h-3 w-3" /> Agent Intelligence
             </div>
-            {smartActions.map(a => (
+            {smartActions.slice(0, 5).map(a => (
               <DropdownMenuItem key={a.id} onClick={() => onSelect(a.id)} className="gap-2 py-2">
                 <a.icon className={`h-4 w-4 ${a.color}`} /> <div className="flex flex-col"><span className="text-sm">{a.label}</span><span className="text-xs text-zinc-500">{a.desc}</span></div>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
+            {browseFiles.map(a => (
+              <DropdownMenuItem key={a.id} onClick={() => pickFile(a.id, 'image/*', a.id === "camera" ? "environment" : undefined)} className="gap-2 py-2">
+                <a.icon className="h-4 w-4" /> <div className="flex flex-col"><span className="text-sm">{a.label}</span><span className="text-xs text-zinc-500">{a.desc}</span></div>
+              </DropdownMenuItem>
+            ))}
           </>
-        )}
-        {actions.map(a => (
+        ) : (
+        actions.map(a => (
           <DropdownMenuItem key={a.id} onClick={() => {
             if (a.id==="file" || a.id==="picture") {
               const input = document.createElement('input');
@@ -83,7 +102,7 @@ export function PlusMenu({ onSelect, onFilePick, mode }: { onSelect: (id: PlusAc
           }} className="gap-2 py-2">
             <a.icon className="h-4 w-4" /> <div className="flex flex-col"><span className="text-sm">{a.label}</span><span className="text-xs text-zinc-500">{a.desc}</span></div>
           </DropdownMenuItem>
-        ))}
+        )))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

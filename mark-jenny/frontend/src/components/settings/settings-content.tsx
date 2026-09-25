@@ -389,6 +389,20 @@ export function SettingsContent() {
     } catch (e: any) { toast.add({ title: e?.message || "Failed to add user", type: "error" }); }
   };
 
+  // Apply chosen font app-wide, immediately and on load
+  useEffect(() => {
+    const stacks: Record<string, string> = {
+      inter: "Inter, system-ui, sans-serif",
+      geist: "Geist, Inter, system-ui, sans-serif",
+      serif: "Georgia, 'Times New Roman', serif",
+      mono: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    };
+    try {
+      const stack = stacks[prefs.fontFamily];
+      document.documentElement.style.fontFamily = stack || "";
+    } catch {}
+  }, [prefs.fontFamily]);
+
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "appearance", label: "Appearance", icon: Sun },
@@ -521,12 +535,15 @@ export function SettingsContent() {
                   <select value={language} onChange={e => setLanguage(e.target.value)} className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
                     <option value="en">English</option><option value="es">Español</option><option value="ja">日本語</option><option value="de">Deutsch</option><option value="fr">Français</option>
                   </select></div>
-                <div>
-                  <label className="text-sm font-medium block">Choose additional customizations</label>
-                  <p className="text-xs text-zinc-500 mb-2">Customizations on top of your base style and tone.</p>
-                  <select value={prefs.styleTone || "Professional"} onChange={e => updatePrefs("styleTone", e.target.value)} className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
-                    <option>Professional</option><option>Formal</option><option>Casual</option><option>Friendly</option><option>Concise</option><option>Detailed</option>
+                <div><label className="text-sm font-medium mb-2 block">Font</label>
+                  <select value={prefs.fontFamily || "default"} onChange={e => updatePrefs("fontFamily", e.target.value)} className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
+                    <option value="default">System default</option>
+                    <option value="inter">Inter</option>
+                    <option value="geist">Geist (app font)</option>
+                    <option value="serif">Serif (Georgia)</option>
+                    <option value="mono">Monospace</option>
                   </select>
+                  <p className="text-xs text-zinc-500 mt-1">Applies across the whole app immediately.</p>
                 </div>
               </CardContent>
             </Card>

@@ -63,7 +63,10 @@ export function useTaskWebSocket(taskId?: number) {
       return;
     }
 
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/api/v1/ws"}/tasks?token=${token}`;
+    const configuredWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    const wsUrl = configuredWsUrl
+      ? `${configuredWsUrl}/tasks?token=${token}`
+      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/v1/ws/tasks?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

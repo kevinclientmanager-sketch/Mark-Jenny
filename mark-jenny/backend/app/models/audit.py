@@ -83,6 +83,14 @@ class AuditAction(str, enum.Enum):
     PERMISSION_DENIED = "PERMISSION_DENIED"
     SUSPICIOUS_ACTIVITY = "SUSPICIOUS_ACTIVITY"
 
+    # Platform governance and agent runtime
+    AGENT_EVALUATE = "AGENT_EVALUATE"
+    POLICY_PREFLIGHT = "POLICY_PREFLIGHT"
+    MCP_ADD = "MCP_ADD"
+    MCP_REMOVE = "MCP_REMOVE"
+    MCP_START = "MCP_START"
+    MCP_CALL = "MCP_CALL"
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

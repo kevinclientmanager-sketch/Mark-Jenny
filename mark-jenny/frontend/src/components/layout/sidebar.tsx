@@ -22,10 +22,12 @@ import {
   Check,
   X,
   CalendarClock,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement, useRef, useEffect } from "react";
+import { quickActionsApi } from "@/lib/api/quickActions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -149,6 +151,28 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
     }
   });
   const [pinnedProjects, setPinnedProjects] = useState<number[]>(() => loadPinned(PROJ_PIN_KEY));
+  const [pinnedActionIds, setPinnedActionIds] = useState<string[]>([]);
+  const [pinnedActions, setPinnedActions] = useState<import("@/lib/api/quickActions").QuickAction[]>([]);
+
+  // Pinned quick actions — refresh whenever we land on a page (pins change on /quick-actions)
+  useEffect(() => {
+    let ids: string[] = [];
+    try { ids = JSON.parse(localStorage.getItem("mark.pinnedQuickActions") || "[]"); } catch {}
+    setPinnedActionIds(ids);
+    if (ids.length > 0) {
+      quickActionsApi.list().then((all) => {
+        const byId = new Map(all.map((a) => [a.id, a]));
+        setPinnedActions(ids.filter((id) => byId.has(id)).map((id) => byId.get(id)!));
+      }).catch(() => {});
+    } else {
+      setPinnedActions([]);
+    }
+  }, [pathname]);
+
+  const launchPinnedAction = (id: string) => {
+    try { localStorage.setItem("mark.quickActionLaunch", id); } catch {}
+    router.push("/quick-actions");
+  };
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameText, setRenameText] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -402,6 +426,18 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
             <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             Quick Action
           </button>
+          {/* Pinned quick actions — added from Quick Actions page */}
+          {pinnedActions.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => launchPinnedAction(a.id)}
+              className="flex h-8 items-center gap-2 rounded-lg px-2.5 pl-8 text-[13px] text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors truncate"
+              title={a.desc || a.label}
+            >
+              <Zap className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+              <span className="truncate">{a.label}</span>
+            </button>
+          ))}
         </div>
       ) : (
         <div className="flex shrink-0 flex-col items-center gap-1 pt-3">

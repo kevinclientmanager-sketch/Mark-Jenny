@@ -270,8 +270,8 @@ export function MessageList({
                 </div>
               </div>
               {isUser && (
-                <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-700 flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
+                <div className="h-9 w-9 shrink-0 self-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-sm shadow-sky-500/30">
+                  <User className="h-5 w-5 text-white" />
                 </div>
               )}
             </div>

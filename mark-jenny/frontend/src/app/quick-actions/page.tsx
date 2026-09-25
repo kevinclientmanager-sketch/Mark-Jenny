@@ -69,6 +69,15 @@ export default function QuickActionsPage() {
         const [a, p] = await Promise.all([quickActionsApi.list(), projectsApi.list({page_size:100})]);
         setActions(a);
         setProjects(p.projects);
+        // Launched from a sidebar pinned action — preselect it
+        try {
+          const launchId = localStorage.getItem("mark.quickActionLaunch");
+          if (launchId) {
+            localStorage.removeItem("mark.quickActionLaunch");
+            const found = a.find((x) => x.id === launchId);
+            if (found) { setSelectedAction(found); setPrompt(""); setFile(null); setResult(null); }
+          }
+        } catch {}
       } catch {
         toast.add({ title: "Couldn't load quick actions", type: "error" });
       } finally { setLoading(false); }

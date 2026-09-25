@@ -8,6 +8,21 @@ export interface GenerateResult {
   preview_url?: string | null;
 }
 
+export interface BuiltItem {
+  id: number;
+  kind: "website" | "app";
+  name: string;
+  description?: string | null;
+  status?: string;
+  framework?: string | null;
+  language?: string | null;
+  preview_url?: string | null;
+  deploy_url?: string | null;
+  repo_url?: string | null;
+  project_id?: number | null;
+  created_at?: string;
+}
+
 export const generativeApi = {
   types: async (): Promise<{id:string; label:string; desc:string; icon:string}[]> => api.get('/generate/types'),
   website: async (data:{prompt:string; project_id?:number}): Promise<GenerateResult> => api.post('/generate/website', data),
@@ -22,4 +37,5 @@ export const generativeApi = {
   document: async (data:{prompt:string; project_id?:number}): Promise<GenerateResult> => api.post('/generate/document', data),
   code: async (data:{prompt:string; project_id?:number}): Promise<GenerateResult> => api.post('/generate/code', data),
   generate: async (type:string, data:{prompt:string; project_id?:number}): Promise<GenerateResult> => api.post(`/generate/${type}`, data),
+  library: async (): Promise<{ websites: BuiltItem[]; apps: BuiltItem[] }> => api.get('/generate/library'),
 };

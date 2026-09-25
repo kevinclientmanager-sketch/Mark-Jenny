@@ -6,6 +6,8 @@ from typing import Optional, List
 from app.db.base import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+from app.models.generated import GeneratedWebsite, GeneratedApp
+from sqlalchemy import desc
 from app.models.task import Task, TaskStatus, TaskPriority
 from app.services.generative_engine import generative_engine
 from app.utils.audit import log_audit
@@ -101,3 +103,25 @@ async def list_types(current_user: User = Depends(get_current_user)):
         {"id":"document","label":"Document","desc":"Markdown report","icon":"FileText"},
         {"id":"code","label":"Code","desc":"Python/JS boilerplate","icon":"Code"},
     ]
+
+
+@router.get("/library")
+async def library(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Finished builds by Mark — apps and websites, separate from working projects."""
+    sites = db.query(GeneratedWebsite).filter(GeneratedWebsite.owner_id == current_user.id).order_by(desc(GeneratedWebsite.created_at)).all()
+    apps = db.query(GeneratedApp).filter(GeneratedApp.owner_id == current_user.id).order_by(desc(GeneratedApp.created_at)).all()
+    return {
+        "websites": [{
+            "id": w.id, "kind": "website", "name": w.name, "description": w.description,
+            "status": w.status.value if hasattr(w.status, "value") else str(w.status),
+            "framework": w.framework, "preview_url": w.preview_url, "deploy_url": w.deploy_url,
+            "project_id": w.project_id, "created_at": w.created_at,
+        } for w in sites],
+        "apps": [{
+            "id": a.id, "kind": "app", "name": a.name, "description": a.description,
+            "status": a.status.value if hasattr(a.status, "value") else str(a.status),
+            "framework": a.framework, "language": a.language,
+            "preview_url": None, "deploy_url": a.deploy_url, "repo_url": a.repo_url,
+            "project_id": a.project_id, "created_at": a.created_at,
+        } for a in apps],
+    }

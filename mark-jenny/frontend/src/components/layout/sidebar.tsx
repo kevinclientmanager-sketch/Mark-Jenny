@@ -12,6 +12,7 @@ import {
   SearchIcon,
   Plus,
   FilePlus2,
+  Library as LibraryIcon,
   LogOut,
   Pin,
   PinOff,
@@ -517,11 +518,11 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
           ) : chatData.mode === "work" ? (
             <>
               <button
-                onClick={() => chatData.onNewProject()}
+                onClick={() => router.push("/library")}
                 className="mb-2 flex h-9 w-full items-center gap-2 rounded-lg bg-zinc-900/5 px-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-900/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15"
               >
-                <FilePlus2 className="h-4 w-4" />
-                New project
+                <LibraryIcon className="h-4 w-4" />
+                Library
               </button>
               {chatData.projects.length === 0 ? (
                 <p className="px-3 py-1 text-xs text-zinc-400">No projects yet.</p>

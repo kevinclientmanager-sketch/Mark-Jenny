@@ -428,7 +428,7 @@ export default function ChatPage() {
             onToggleRightPanel={() => setWorkOpen((v) => !v)}
             activeProjectName={mode !== "browse" ? projects.find((p) => p.id === projectId)?.name : undefined}
             isPinned={activeChatId ? pinned.includes(activeChatId) : false}
-            onTogglePin={activeChatId ? () => togglePin(activeChatId) : undefined}
+            onTogglePin={(id?: number) => { const target = id ?? activeChatId; if (target) togglePin(target); }}
             mode={mode}
             browserSessions={browseSessions}
           />

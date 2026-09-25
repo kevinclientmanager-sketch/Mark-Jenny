@@ -49,7 +49,7 @@ export function ChatTopBar({
   onToggleRightPanel?: () => void;
   activeProjectName?: string;
   isPinned?: boolean;
-  onTogglePin?: () => void;
+  onTogglePin?: (id?: number) => void;
   onRenameTab?: (id: number, title: string) => void;
   onDeleteTab?: (id: number) => void;
   onToggleMute?: (id: number) => void;
@@ -219,7 +219,7 @@ export function ChatTopBar({
               <Pencil className="h-3 w-3" /> Rename
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); onTogglePin?.(); setMenuTab(null); }}
+              onClick={(e) => { e.stopPropagation(); onTogglePin?.(tab.id); setMenuTab(null); }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               {tab.pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}

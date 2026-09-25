@@ -270,7 +270,7 @@ export function MessageList({
                 </div>
               </div>
               {isUser && (
-                <div className="h-10 w-10 shrink-0 self-center rounded-full bg-gradient-to-br from-green-400 via-teal-500 to-sky-600 flex items-center justify-center shadow-md shadow-teal-500/30 ring-2 ring-white/60 dark:ring-white/10">
+                <div className="h-10 w-10 shrink-0 self-start mt-1 rounded-full bg-gradient-to-br from-green-400 via-teal-500 to-sky-600 flex items-center justify-center shadow-md shadow-teal-500/30 ring-2 ring-white/60 dark:ring-white/10">
                   <User className="h-5 w-5 text-white" strokeWidth={2.5} />
                 </div>
               )}

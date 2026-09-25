@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Bot,
   Code2,
-  Hammer,
   Menu,
   PanelLeftClose,
   Sparkles,
@@ -22,9 +21,7 @@ import {
   Pencil,
   Check,
   X,
-  BookOpen,
   CalendarClock,
-  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -53,20 +50,15 @@ const BUCKETS = ["Today", "Yesterday", "Previous 7 days", "Previous 30 days", "O
 
 const AGENTS = [
   { id: "chat", label: "Imti", icon: Bot },
-  { id: "work", label: "Imti Work", icon: Code2 },
+  { id: "work", label: "Mark", icon: Code2 },
   { id: "browse", label: "Browser", icon: Globe },
 ] as const;
 
 const WORKSPACE_NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FilePlus2 },
-  { href: "/build", label: "Build workspace", icon: Hammer },
-  { href: "/library", label: "Library", icon: BookOpen },
-  { href: "/scheduled", label: "Scheduled", icon: CalendarClock },
-  { href: "/skills", label: "Skills", icon: Sparkles },
-  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { href: "/memory", label: "Memory", icon: Brain },
-  { href: "/settings", label: "Settings", icon: Settings },
+  // Projects belong to Mark (work), Schedule belongs to Imti (chat)
+  { href: "/projects", label: "Projects", icon: FilePlus2, modes: ["work", "browse"] },
+  { href: "/scheduled", label: "Scheduled", icon: CalendarClock, modes: ["chat", "browse"] },
+  { href: "/skills", label: "Skills", icon: Sparkles, modes: ["chat", "work", "browse"] },
 ] as const;
 
 const PIN_KEY = "mark.pinnedChats";
@@ -338,12 +330,12 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
       )}
     >
       {/* Row 1: Header — word mark | search | collapse */}
-      <div className={cn("flex h-16 shrink-0 items-center border-b border-zinc-200/70 dark:border-zinc-800", isOpen ? "gap-2 px-3" : "px-2 justify-center")}>
+      <div className={cn("flex h-14 shrink-0 items-center border-b border-zinc-200 dark:border-zinc-800", isOpen ? "gap-2 pl-5 pr-3" : "px-2 justify-center")}>
         {isOpen ? (
           <>
             <button
               onClick={() => router.push("/")}
-              className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold tracking-tight text-zinc-900 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
+              className="min-w-0 flex-1 truncate text-left text-lg font-semibold tracking-tight text-zinc-900 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
               title="Go to Dashboard"
             >
               Mark-Imti
@@ -438,11 +430,11 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
         </div>
       )}
 
-      {/* Shared workspace navigation stays identical across every page and agent mode. */}
+      {/* Workspace navigation — Projects only in Mark mode, Schedule only in Imti mode. */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         {isOpen && (
           <div className="mb-3 flex flex-col gap-0.5 border-b border-zinc-200 pb-3 dark:border-zinc-800">
-            {WORKSPACE_NAV.map((item) => {
+            {WORKSPACE_NAV.filter((item) => (item.modes as readonly string[]).includes(displayMode)).map((item) => {
               const Icon = item.icon;
               return (
                 <button

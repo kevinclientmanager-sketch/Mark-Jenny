@@ -42,11 +42,13 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user_data.password)
+    # First registered user becomes the owner/admin so user management is never locked out
+    is_first_user = db.query(User).count() == 0
     user = User(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        role=UserRole.USER,
+        role=UserRole.ADMIN if is_first_user else UserRole.USER,
         is_active=True,
         is_verified=False,
     )

@@ -23,23 +23,20 @@ export default function ImtiPage() {
   const [newTaskType, setNewTaskType] = useState('file_manage');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Always start fresh — new empty UI on every visit, no restored session
   useEffect(() => {
-    const saved = localStorage.getItem('mark.imtiMode');
-    if (saved === 'chat' || saved === 'work') setMode(saved);
-  }, []);
-
-  useEffect(() => {
-    if (mode) {
-      try { localStorage.setItem('mark.imtiMode', mode); } catch {}
-      if (mode === 'work') loadWorkData();
-    }
+    if (mode === 'work') loadWorkData();
   }, [mode]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
   const selectMode = useCallback((m: ImtiMode) => {
+    // Switching mode always starts a fresh empty UI for that mode
     setMode(m);
     setChatMessages([]);
+    setChatInput('');
+    setNewTaskDesc('');
+    setActiveWorkTab('tasks');
   }, []);
 
   const loadWorkData = async () => {

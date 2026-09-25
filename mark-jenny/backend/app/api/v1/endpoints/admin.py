@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.db.base import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_password_hash
 from app.models.user import User, UserRole
 from app.models.audit import AuditLog, AuditAction
 from app.utils.audit import log_audit
@@ -32,6 +32,12 @@ CREDITS: Dict[int, int] = {}
 
 class RoleUpdate(BaseModel):
     role: UserRole
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.USER
 
 class SubscriptionUpdate(BaseModel):
     plan: str
@@ -60,6 +66,26 @@ async def admin_list_users(
     total = q.count()
     users = q.order_by(desc(User.created_at)).offset((page-1)*page_size).limit(page_size).all()
     return {"users": [{"id":u.id, "email":u.email, "full_name":u.full_name, "role":u.role.value, "is_active":u.is_active, "created_at":u.created_at} for u in users], "total":total, "page":page, "page_size":page_size}
+
+@router.post("/users")
+async def admin_create_user(data: UserCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    u = User(
+        email=data.email,
+        hashed_password=get_password_hash(data.password),
+        full_name=data.full_name or data.email.split("@")[0],
+        role=data.role,
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    await log_audit(db, user_id=current_user.id, action="USER_CREATE", resource_type="user", resource_id=str(u.id), success=True)
+    return {"id": u.id, "email": u.email, "full_name": u.full_name, "role": u.role.value, "is_active": u.is_active}
 
 @router.get("/users/{user_id}")
 async def admin_get_user(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

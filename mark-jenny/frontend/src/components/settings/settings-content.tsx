@@ -322,12 +322,38 @@ export function SettingsContent() {
     } catch (e: any) { toast.add({ title: e?.message || "Failed to add", type: "error" }); }
   };
 
-  const setUserRole = async (id: number, role: "ADMIN" | "USER") => {
+  const setUserRole = async (id: number, role: "ADMIN" | "CREATOR" | "USER") => {
     try {
       await api.patch(`/admin/users/${id}/role`, { role });
       toast.add({ title: "Role updated", type: "success" });
       api.get("/admin/users?page_size=50").then((r: any) => setUsers(r.users || [])).catch(() => {});
     } catch { toast.add({ title: "Failed to update role", type: "error" }); }
+  };
+
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"ADMIN" | "CREATOR" | "USER">("USER");
+
+  const createUser = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim()) {
+      toast.add({ title: "Email and password are required", type: "error" });
+      return;
+    }
+    try {
+      // Create via public register, then set role (works on any backend build)
+      const created: any = await api.post("/auth/register", {
+        email: newUserEmail.trim(),
+        password: newUserPassword,
+        full_name: newUserName.trim() || undefined,
+      });
+      if (newUserRole !== "USER" && created?.id) {
+        await api.patch(`/admin/users/${created.id}/role`, { role: newUserRole });
+      }
+      toast.add({ title: "User added", type: "success" });
+      setNewUserEmail(""); setNewUserName(""); setNewUserPassword(""); setNewUserRole("USER");
+      api.get("/admin/users?page_size=50").then((r: any) => setUsers(r.users || [])).catch(() => {});
+    } catch (e: any) { toast.add({ title: e?.message || "Failed to add user", type: "error" }); }
   };
 
   const tabs = [
@@ -655,32 +681,51 @@ export function SettingsContent() {
               <CardContent>
                 {user?.role !== "ADMIN" ? (
                   <p className="text-sm text-zinc-500">Admin access required.</p>
-                ) : users.length === 0 ? (
-                  <p className="text-sm text-zinc-500">No users found.</p>
                 ) : (
-                  <div className="space-y-2">{users.map((u: any) => (
-                    <div key={u.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{u.full_name || u.email}</p>
-                        <p className="text-xs text-zinc-500">{u.email}</p>
+                  <div className="space-y-4">
+                    <div className="p-3 border rounded-lg space-y-2">
+                      <p className="text-sm font-medium">Add user</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="Email" className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800" />
+                        <input value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="Full name (optional)" className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800" />
+                        <input value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="Password" type="password" className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800" />
+                        <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as "ADMIN" | "CREATOR" | "USER")} className="px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
+                          <option value="USER">USER</option>
+                          <option value="CREATOR">CREATOR (manager)</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {u.id === user?.id ? (
-                          <Badge variant="outline">You</Badge>
-                        ) : (
-                          <select
-                            value={u.role}
-                            onChange={(e) => setUserRole(u.id, e.target.value as "ADMIN" | "USER")}
-                            className="px-2 py-1.5 text-xs border rounded-lg dark:bg-zinc-800"
-                          >
-                            <option value="USER">USER</option>
-                            <option value="ADMIN">ADMIN</option>
-                          </select>
-                        )}
-                        <Badge variant={u.role === "ADMIN" ? "default" : "outline"}>{u.role}</Badge>
-                      </div>
+                      <button onClick={createUser} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add user</button>
                     </div>
-                  ))}</div>
+                    {users.length === 0 ? (
+                      <p className="text-sm text-zinc-500">No users found.</p>
+                    ) : (
+                      <div className="space-y-2">{users.map((u: any) => (
+                        <div key={u.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{u.full_name || u.email}</p>
+                            <p className="text-xs text-zinc-500">{u.email}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {u.id === user?.id ? (
+                              <Badge variant="outline">You</Badge>
+                            ) : (
+                              <select
+                                value={u.role}
+                                onChange={(e) => setUserRole(u.id, e.target.value as "ADMIN" | "CREATOR" | "USER")}
+                                className="px-2 py-1.5 text-xs border rounded-lg dark:bg-zinc-800"
+                              >
+                                <option value="USER">USER</option>
+                                <option value="CREATOR">CREATOR</option>
+                                <option value="ADMIN">ADMIN</option>
+                              </select>
+                            )}
+                            <Badge variant={u.role === "ADMIN" ? "default" : "outline"}>{u.role}</Badge>
+                          </div>
+                        </div>
+                      ))}</div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

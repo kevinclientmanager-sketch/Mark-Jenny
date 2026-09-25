@@ -31,6 +31,27 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
+
+def _call_ai(prompt: str, system: str = "", timeout: int = 120) -> str:
+    """Call the local AI model synchronously. Returns '' when unavailable."""
+    try:
+        import httpx
+        base = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434") or "http://localhost:11434"
+        try:
+            tags = httpx.get(f"{base}/api/tags", timeout=5).json()
+            models = tags.get("models", [])
+            model_name = models[0]["name"] if models else "qwen3-vl:8b"
+        except Exception:
+            model_name = "qwen3-vl:8b"
+        resp = httpx.post(
+            f"{base}/api/generate",
+            json={"model": model_name, "prompt": prompt, "system": system, "stream": False},
+            timeout=timeout,
+        )
+        return resp.json().get("response", "") or ""
+    except Exception:
+        return ""
+
 # Directories
 DATA_DIR = Path(os.environ.get("MARK_JENNY_DATA", "."))
 SANDBOX_DIR = DATA_DIR / "sandbox"
@@ -151,7 +172,11 @@ class SelfBuildOrchestrator:
         timestamp = datetime.utcnow().strftime("%H:%M:%S")
         line = f"[{timestamp}] {message}"
         session.log_lines.append(line)
-        print(f"[SelfBuild] {line}")
+        try:
+            print(f"[SelfBuild] {line}")
+        except UnicodeEncodeError:
+            enc = getattr(sys.stdout, "encoding", None) or "ascii"
+            print(f"[SelfBuild] {line}".encode(enc, errors="replace").decode(enc))
 
     # === PHASE 1: PARSE USER REQUEST ===
 
@@ -280,7 +305,7 @@ class SelfBuildOrchestrator:
 
         self._log(session, f"Jenny: I identified {len(steps)} steps to build:")
         for step in steps:
-            self._log(session, f"  → {step.description}")
+            self._log(session, f"  -> {step.description}")
 
         return steps
 

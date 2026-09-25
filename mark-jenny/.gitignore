@@ -60,3 +60,5 @@ backend/build_logs/
 backend/live/
 *.db
 *.db-journal
+.vercel
+.env*

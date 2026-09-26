@@ -202,6 +202,124 @@ class ModelRouter:
             chain = self.registry.list_models()[:3]
         return chain
 
+    PROVIDER_DEFAULT_URLS = {
+        ModelProvider.OPENAI: "https://api.openai.com/v1",
+        ModelProvider.ANTHROPIC: "https://api.anthropic.com",
+        ModelProvider.GOOGLE: "https://generativelanguage.googleapis.com",
+        ModelProvider.DEEPSEEK: "https://api.deepseek.com/v1",
+        ModelProvider.MISTRAL: "https://api.mistral.ai/v1",
+        ModelProvider.XAI: "https://api.x.ai/v1",
+        ModelProvider.OPENROUTER: "https://openrouter.ai/api/v1",
+        ModelProvider.OLLAMA: "http://localhost:11434",
+    }
+
+    PROVIDER_DEFAULT_MODELS = {
+        ModelProvider.OPENAI: "gpt-4o-mini",
+        ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
+        ModelProvider.GOOGLE: "gemini-2.0-flash",
+        ModelProvider.DEEPSEEK: "deepseek-chat",
+        ModelProvider.MISTRAL: "mistral-small-latest",
+        ModelProvider.XAI: "grok-3-mini",
+        ModelProvider.OPENROUTER: "openai/gpt-4o-mini",
+        ModelProvider.OLLAMA: "llama3.1:8b",
+    }
+
+    @staticmethod
+    def _decrypt_key(enc: Optional[str]) -> str:
+        if not enc:
+            return ""
+        try:
+            import base64
+            return base64.b64decode(enc.encode()).decode()
+        except Exception:
+            return enc
+
+    async def call_model(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.3,
+    ) -> str:
+        """Call the user's configured cloud provider (saved in Settings). Default config first."""
+        import httpx
+
+        configs = self.db.query(ModelProviderConfig).filter(
+            ModelProviderConfig.user_id == self.user_id
+        ).all()
+        # Default config first, then by provider priority
+        order = {ModelProvider.OPENAI: 1, ModelProvider.ANTHROPIC: 2, ModelProvider.GOOGLE: 3,
+                 ModelProvider.DEEPSEEK: 4, ModelProvider.MISTRAL: 5, ModelProvider.XAI: 6,
+                 ModelProvider.OPENROUTER: 7, ModelProvider.CUSTOM: 8, ModelProvider.AZURE: 9,
+                 ModelProvider.OLLAMA: 10}
+        configs.sort(key=lambda c: (0 if c.is_default else 1, order.get(c.provider, 9)))
+
+        for cfg in configs:
+            key = self._decrypt_key(cfg.api_key_encrypted)
+            if not key:
+                continue
+            try:
+                conf = cfg.config or {}
+                if cfg.provider == ModelProvider.ANTHROPIC:
+                    model = conf.get("model") or self.PROVIDER_DEFAULT_MODELS[ModelProvider.ANTHROPIC]
+                    async with httpx.AsyncClient(timeout=90) as client:
+                        r = await client.post(
+                            "https://api.anthropic.com/v1/messages",
+                            headers={"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                            json={"model": model, "max_tokens": max_tokens,
+                                  "system": system or "You are a helpful assistant.",
+                                  "messages": [{"role": "user", "content": prompt[:6000]}]},
+                        )
+                    if r.status_code == 200:
+                        blocks = r.json().get("content", [])
+                        text = "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
+                        if text.strip():
+                            return text.strip()
+                    continue
+                if cfg.provider == ModelProvider.GOOGLE:
+                    model = conf.get("model") or self.PROVIDER_DEFAULT_MODELS[ModelProvider.GOOGLE]
+                    async with httpx.AsyncClient(timeout=90) as client:
+                        r = await client.post(
+                            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+                            json={"system_instruction": {"parts": [{"text": system or "You are a helpful assistant."}]},
+                                  "contents": [{"parts": [{"text": prompt[:6000]}]}],
+                                  "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}},
+                        )
+                    if r.status_code == 200:
+                        cands = r.json().get("candidates", [])
+                        parts = (cands[0].get("content", {}).get("parts", []) if cands else [])
+                        text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+                        if text.strip():
+                            return text.strip()
+                    continue
+                # OPENAI / CUSTOM / AZURE / OLLAMA via OpenAI-compatible API
+                base = (cfg.base_url or self.PROVIDER_DEFAULT_URLS.get(cfg.provider) or "").rstrip("/")
+                if not base:
+                    continue
+                endpoint = base if base.endswith("/chat/completions") else f"{base}/chat/completions"
+                model = conf.get("model") or self.PROVIDER_DEFAULT_MODELS.get(cfg.provider) or "default"
+                msgs = []
+                if system:
+                    msgs.append({"role": "system", "content": system})
+                msgs.append({"role": "user", "content": prompt[:6000]})
+                async with httpx.AsyncClient(timeout=90) as client:
+                    r = await client.post(
+                        endpoint,
+                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+                        json={"model": model, "messages": msgs, "temperature": temperature, "max_tokens": max_tokens},
+                    )
+                if r.status_code == 200:
+                    choices = r.json().get("choices", [])
+                    content = choices[0].get("message", {}).get("content", "") if choices else ""
+                    if isinstance(content, list):
+                        content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+                    if content and str(content).strip():
+                        return str(content).strip()
+            except Exception:
+                continue
+        return ""
+
     def get_model_for_agent(self, agent: Agent) -> Optional[Model]:
         if agent.model_id:
             m = self.registry.get_model(agent.model_id)

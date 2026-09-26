@@ -12,6 +12,10 @@ class ModelProvider(str, enum.Enum):
     OLLAMA = "OLLAMA"
     AZURE = "AZURE"
     CUSTOM = "CUSTOM"
+    DEEPSEEK = "DEEPSEEK"
+    MISTRAL = "MISTRAL"
+    XAI = "XAI"
+    OPENROUTER = "OPENROUTER"
 
 
 class ModelCapability(str, enum.Enum):

@@ -997,9 +997,21 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         """Call Ollama or cloud API to generate a response. Tries all providers."""
         import httpx
 
-        # 1. Try Ollama (local, free)
+        # 0. User-configured providers FIRST (Settings keys) — fast cloud answer, no local hang
         try:
-            async with httpx.AsyncClient(timeout=90) as client:
+            from app.services.model_caller import ModelCaller
+            result = await ModelCaller.call(
+                prompt, system, temperature=0.3, max_tokens=1024,
+                db=self.db, user_id=getattr(self, "_user_id", None),
+            )
+            if result and len(result) > 5:
+                return result
+        except Exception:
+            pass
+
+        # 1. Try Ollama (local, free) with a short budget so slow CPUs fail fast
+        try:
+            async with httpx.AsyncClient(timeout=45) as client:
                 tags = await client.get("http://localhost:11434/api/tags", timeout=3)
                 if tags.status_code == 200:
                     models = tags.json().get("models", [])
@@ -1014,7 +1026,8 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
                                     {"role": "user", "content": prompt[:4000]},
                                 ],
                                 "stream": False,
-                                "options": {"num_predict": 1024, "temperature": 0.3},
+                                "think": False,
+                                "options": {"num_predict": 512, "temperature": 0.3},
                             },
                         )
                         if r.status_code == 200:

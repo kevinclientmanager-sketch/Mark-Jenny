@@ -1021,7 +1021,7 @@ export function SettingsContent() {
                           <Button size="sm" variant="outline" onClick={() => {
                             const key = prompt(`Enter API key for ${p.name}:`);
                             if (key !== null) {
-                              api.post("/models/providers", { provider: p.provider, api_key: key })
+                              api.post("/ai/providers", { provider: p.provider, api_key: key })
                                 .then(() => toast.add({ title: `${p.name} configured`, type: "success" }))
                                 .catch(() => toast.add({ title: `Failed to configure ${p.name}`, type: "error" }));
                             }
@@ -1045,7 +1045,7 @@ export function SettingsContent() {
                       <p className="text-xs text-zinc-500">Run models on your device — no API key needed, fully private.</p>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => {
-                      api.post("/models/providers", { provider: "OLLAMA", base_url: "http://localhost:11434" })
+                      api.post("/ai/providers", { provider: "OLLAMA", base_url: "http://localhost:11434" })
                         .then(() => toast.add({ title: "Ollama connected", type: "success" }))
                         .catch(() => toast.add({ title: "Ollama not running — start with `ollama serve`", type: "error" }));
                     }}>Connect Ollama</Button>

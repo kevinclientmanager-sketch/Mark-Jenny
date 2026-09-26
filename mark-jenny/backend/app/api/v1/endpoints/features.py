@@ -389,7 +389,17 @@ async def mcp_connect_from_registry(
             await mcp_client.stop_server(entry["id"])
         except Exception:
             pass
-        started = await mcp_client.start_server(entry["id"])
+        try:
+            started = await mcp_client.start_server(entry["id"])
+        except Exception as exc:
+            started = {"success": False, "error": f"{type(exc).__name__}: {exc}"}
+        if not (started or {}).get("success"):
+            started = {
+                "success": False,
+                "error": (started or {}).get("error") or "The server did not start.",
+                "tools": 0,
+                "tool_list": [],
+            }
         # Record any tools the server advertised so they are browsable.
         mcp_client.servers[entry["id"]]["tools"] = mcp_client.servers[entry["id"]].get("tools", [])
         mcp_client._save_config()

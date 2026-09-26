@@ -6,7 +6,7 @@ import asyncio
 import json
 import base64
 from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.base import get_db
@@ -222,14 +222,51 @@ async def list_voices(provider: str = "edge_tts"):
 
 @router.post("/transcribe")
 async def transcribe_audio_endpoint(
-    audio: str,  # base64 encoded audio
+    request: Request,
+    audio: Optional[str] = None,
     format: str = "webm",
     language: str = "en",
 ):
-    """Transcribe audio to text (REST endpoint for single-shot STT)."""
+    """Transcribe audio to text.
+
+    Accepts either multipart/form-data (what the browser recorder actually
+    sends) or a base64 `audio` field. Previously only a query/form string was
+    accepted, so the browser upload always failed with 422.
+    """
     import base64
-    audio_data = base64.b64decode(audio)
-    return await voice_engine.transcribe_audio(audio_data, format, language)
+
+    audio_bytes: Optional[bytes] = None
+    content_type = (request.headers.get("content-type") or "").lower()
+
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        upload = form.get("audio") or form.get("file")
+        language = str(form.get("language") or language)
+        fmt = str(form.get("format") or format)
+        if upload is None:
+            raise HTTPException(status_code=400, detail="No audio file in the request (expected field 'audio' or 'file').")
+        if hasattr(upload, "read"):
+            audio_bytes = await upload.read()
+            filename = getattr(upload, "filename", "") or ""
+            if not fmt or fmt == "webm":
+                fmt = filename.rsplit(".", 1)[-1] if "." in filename else "webm"
+        else:
+            audio_bytes = base64.b64decode(str(upload))
+    elif audio:
+        try:
+            audio_bytes = base64.b64decode(audio)
+        except Exception:
+            raise HTTPException(status_code=400, detail="`audio` must be base64 encoded.")
+    else:
+        raise HTTPException(status_code=400, detail="Send multipart/form-data with an `audio` file, or a base64 `audio` field.")
+
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Audio payload was empty.")
+
+    result = await voice_engine.transcribe_audio(audio_bytes, format, language)
+    if isinstance(result, dict) and not result.get("success", True):
+        raise HTTPException(status_code=503, detail=result.get("error") or "Transcription engine unavailable")
+    return result
 
 
 @router.post("/synthesize")

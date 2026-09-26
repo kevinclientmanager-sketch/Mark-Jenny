@@ -268,7 +268,9 @@ export function ChatInput({
       };
       tick();
     } catch {
-      setVoiceLevel(30);
+      // No analyser available (browser blocked WebAudio) - show no level
+      // rather than a fake moving bar.
+      setVoiceLevel(0);
     }
   };
 
@@ -542,7 +544,7 @@ export function ChatInput({
               </Button>
               <div className="flex-1">
                 <div className="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 transition-[width] duration-75" style={{ width: `${voiceLevel || 20}%` }} />
+                  <div className="h-full bg-red-500 transition-[width] duration-75" style={{ width: `${voiceLevel}%` }} />
                 </div>
                 <p className="text-xs text-zinc-500 mt-1 flex items-center gap-2">
                   <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />

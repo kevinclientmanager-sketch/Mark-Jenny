@@ -47,6 +47,7 @@ class ProactiveResponse:
     confidence: float
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     dismissed: bool = False
+    ai_generated: bool = True
 
 
 class ProactiveEngine:
@@ -164,26 +165,28 @@ Return JSON:
             except Exception:
                 pass
 
+        # No model answered. Emit an explicit, non-fabricated notice instead of
+        # a canned "Need help with anything?" dressed up as an AI suggestion.
         return ProactiveResponse(
             id=f"resp-{trigger.id}-{int(time.time())}",
             trigger_id=trigger.id,
             trigger_type=trigger.trigger_type,
-            message=self._get_default_message(trigger.trigger_type),
-            suggested_actions=self._get_default_actions(trigger.trigger_type),
+            message=(
+                "A proactive suggestion was requested but no AI model is connected, so there is "
+                "nothing real to suggest. Connect a provider in Settings > AI Studio to enable this."
+            ),
+            suggested_actions=[],
             context=context,
-            confidence=0.3,
+            confidence=0.0,
+            ai_generated=False,
         )
 
     def _get_default_message(self, trigger_type: TriggerType) -> str:
-        messages = {
-            TriggerType.IDLE_SUGGESTION: "Need help with anything?",
-            TriggerType.TASK_COMPLETED: "Task done. What's next?",
-            TriggerType.ERROR_OCCURRED: "An error occurred. Want me to help fix it?",
-            TriggerType.FILE_CHANGED: "A file was modified. Want me to review it?",
-            TriggerType.DEADLINE_APPROACHING: "Deadline approaching. Need to prioritize?",
-            TriggerType.CONTEXT_CHANGE: "Context changed. Want me to adapt?",
-        }
-        return messages.get(trigger_type, "How can I help?")
+        """Deprecated: returns an explicit unavailable notice, never a fake AI line."""
+        return (
+            "No AI model is connected, so this suggestion could not be generated. "
+            "Connect a provider in Settings > AI Studio."
+        )
 
     def _get_default_actions(self, trigger_type: TriggerType) -> list[str]:
         actions = {

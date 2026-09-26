@@ -27,6 +27,7 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
       rec.onstop = async ()=>{
         const blob = new Blob(chunksRef.current, {type:'audio/webm'});
         let text = "";
+        let failure = "";
         try {
           const formData = new FormData();
           formData.append("audio", blob, "recording.webm");
@@ -40,10 +41,24 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
           if (res.ok) {
             const data = await res.json();
             text = data.text || data.transcript || "";
+          } else {
+            let detail = "";
+            try { detail = (await res.json())?.detail || ""; } catch {}
+            failure = `Transcription failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`;
           }
-        } catch {}
-        if (!text) text = `[Voice ${mode}: ${Math.round(timer)}s audio - ${blob.size} bytes]`;
-        onTranscribed(text, mode);
+        } catch (e:any) {
+          failure = `Transcription request failed: ${e?.message || e}`;
+        }
+        // Never post a fabricated "[Voice ... bytes]" line as if the user said it.
+        if (!text) {
+          toast.add({
+            title: "Could not transcribe audio",
+            description: failure || "No speech-to-text engine is available, so nothing was sent to the chat. Type your message instead.",
+            type: "error",
+          });
+        } else {
+          onTranscribed(text, mode);
+        }
         stream.getTracks().forEach(t=>t.stop());
         setTimer(0);
       };

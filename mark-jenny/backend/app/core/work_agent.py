@@ -372,10 +372,21 @@ Tone: {tone}
 Write a complete, ready-to-send email."""
             try:
                 content = await self.model.complete(prompt, max_tokens=2000)
-                return {"draft": content, "to": to, "subject": subject, "status": "draft"}
+                if content and "unable to process this request" not in content.lower():
+                    return {"draft": content, "to": to, "subject": subject,
+                            "status": "draft", "ai_generated": True}
             except Exception:
                 pass
-        return {"draft": f"Dear {to},\n\n{context}\n\nBest regards", "to": to, "subject": subject, "status": "draft"}
+        # No model answered: say so rather than shipping a template as an "AI draft".
+        return {
+            "draft": None,
+            "to": to,
+            "subject": subject,
+            "status": "unavailable",
+            "ai_generated": False,
+            "note": "No AI model produced a draft. Connect a provider in Settings > AI Studio "
+                    "and try again - a template will not be presented as an AI draft.",
+        }
 
     async def read_email(self, params: dict) -> dict:
         return {"emails": [], "count": 0, "note": "Email connector not configured. Connect Gmail/Outlook in Connectors settings."}
@@ -396,20 +407,21 @@ Write a complete, ready-to-send email."""
         self._save_state()
 
     def predict_needs(self, context: dict = None) -> list[dict]:
+        """Predictions derived only from learned patterns.
+
+        The previous version also emitted fixed time-of-day suggestions
+        ("Ready for your morning summary?") with invented confidence scores.
+        """
         predictions = []
-        hour = datetime.utcnow().hour
-        if 8 <= hour <= 10:
-            predictions.append({"need": "morning_brief", "confidence": 0.7, "suggestion": "Ready for your morning summary?"})
-        elif 17 <= hour <= 19:
-            predictions.append({"need": "end_of_day", "confidence": 0.6, "suggestion": "Want me to summarize today's work?"})
         high_freq = sorted(self._patterns.values(), key=lambda p: p.frequency, reverse=True)[:5]
         for p in high_freq:
             if p.confidence > 0.6:
                 predictions.append({
                     "need": p.trigger,
-                    "confidence": p.confidence,
-                    "suggestion": f"Should I {p.action}?",
+                    "confidence": round(p.confidence, 2),
+                    "suggestion": f"Based on {p.frequency} learned occurrence(s): run '{p.action}'?",
                     "pattern_id": p.id,
+                    "source": "learned_pattern",
                 })
         return predictions
 

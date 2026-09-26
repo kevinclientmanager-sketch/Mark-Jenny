@@ -247,7 +247,48 @@ class SkillDependencyEngine:
 
 
 class KnowledgeGraph:
+    # Built graphs are cached per user/project: rebuilding meant a blocking
+    # model round-trip on every request, which took ~16s to time out.
+    _cache: Dict[tuple, tuple] = {}   # key -> (expires_at, payload)
+    CACHE_TTL = 300
+
+    @classmethod
+    def _cache_get(cls, key):
+        hit = cls._cache.get(key)
+        if not hit:
+            return None
+        expires_at, payload = hit
+        import time as _t
+        if _t.time() > expires_at:
+            cls._cache.pop(key, None)
+            return None
+        return payload
+
+    @classmethod
+    def _cache_put(cls, key, payload):
+        import time as _t
+        if len(cls._cache) > 200:
+            cls._cache.clear()
+        cls._cache[key] = (_t.time() + cls.CACHE_TTL, payload)
+
+    @staticmethod
+    def _model_available(db: Session, user_id: int) -> bool:
+        """Only attempt the AI pass when this user actually has a provider."""
+        try:
+            from app.models.agent import ModelProviderConfig
+            return db.query(ModelProviderConfig).filter(
+                ModelProviderConfig.user_id == user_id,
+                ModelProviderConfig.api_key_encrypted.isnot(None),
+            ).count() > 0
+        except Exception:
+            return False
+
     def build(self, db: Session, user_id: int, project_id: Optional[int]=None) -> Dict:
+        cache_key = (user_id, project_id)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return {**cached, "cached": True}
+
         from app.models.project import Project
         from app.models.knowledge import Knowledge, Memory
         from app.models.skill import Skill
@@ -260,10 +301,10 @@ class KnowledgeGraph:
         skills = [{"id":s.id, "name":s.name, "type":"skill"} for s in db.query(Skill).filter((Skill.owner_id==user_id)|(Skill.owner_id.is_(None))).limit(10).all()]
         knowledge = [{"id":k.id, "name":k.name, "type":"knowledge", "project_id":k.project_id} for k in db.query(Knowledge).filter(Knowledge.owner_id==user_id).limit(10).all()]
 
-        # AI-powered relationship discovery
+        # AI-powered relationship discovery - only when a provider exists.
         all_entities = projects + files + skills + knowledge
         entity_names = [e["name"] for e in all_entities if e.get("name")]
-        if entity_names:
+        if entity_names and self._model_available(db, user_id):
             system = (
                 "You are a knowledge graph architect. Analyze the entities and discover relationships. "
                 "Output JSON: {\"edges\": [{\"from\": str, \"to\": str, \"label\": str, \"weight\": int}], "
@@ -271,7 +312,7 @@ class KnowledgeGraph:
             )
             ai_relations = _call_ai(
                 f"Discover relationships between these entities:\n{json.dumps(entity_names[:20])}",
-                system=system, timeout=15,
+                system=system, timeout=8,
             )
             if ai_relations:
                 try:
@@ -282,12 +323,14 @@ class KnowledgeGraph:
                         cleaned = cleaned[:-3]
                     ai_data = json.loads(cleaned.strip())
                     edges = [{"from": e["from"], "to": e["to"], "label": e["label"]} for e in ai_data.get("edges", []) if e.get("from") and e.get("to")]
-                    return {"nodes": all_entities, "edges": edges, "count": len(all_entities),
-                            "clusters": ai_data.get("clusters", []), "insights": ai_data.get("insights", []), "ai_powered": True}
+                    payload = {"nodes": all_entities, "edges": edges, "count": len(all_entities),
+                               "clusters": ai_data.get("clusters", []), "insights": ai_data.get("insights", []), "ai_powered": True}
+                    self._cache_put(cache_key, payload)
+                    return {**payload, "cached": False}
                 except:
                     pass
 
-        # Fallback: structural edges
+        # Fallback: structural edges (instant, no model call)
         edges = []
         for f in files:
             if f.get("project_id"):
@@ -295,7 +338,9 @@ class KnowledgeGraph:
         for k in knowledge:
             if k.get("project_id"):
                 edges.append({"from": f"project:{k['project_id']}", "to": f"knowledge:{k['id']}", "label":"has"})
-        return {"nodes": all_entities, "edges": edges, "count": len(all_entities), "ai_powered": False}
+        payload = {"nodes": all_entities, "edges": edges, "count": len(all_entities), "ai_powered": False}
+        self._cache_put(cache_key, payload)
+        return {**payload, "cached": False}
 
 
 blueprint_mgr = BlueprintManager()

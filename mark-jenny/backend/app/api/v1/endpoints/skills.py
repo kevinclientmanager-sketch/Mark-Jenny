@@ -354,6 +354,26 @@ async def install_official(name: str, current_user: User = Depends(get_current_u
         owner_id=current_user.id
     )
     db.add(skill); db.commit(); db.refresh(skill)
+
+    # Replace the generic template body with a real, model-authored playbook.
+    from app.services.skill_playbook import author_playbook, is_template
+    if is_template(skill.instructions):
+        try:
+            pb = author_playbook(
+                name=reg["name"], description=reg["description"],
+                tools=reg["tools"], permissions=reg["permissions"],
+                db=db, user_id=current_user.id,
+            )
+            skill.instructions = pb["instructions"]
+            manifest = dict(skill.manifest or {})
+            manifest["playbook_source"] = pb["source"]
+            if pb["error"]:
+                manifest["playbook_note"] = pb["error"]
+            skill.manifest = manifest
+            db.commit(); db.refresh(skill)
+        except Exception:
+            db.rollback()
+
     # version snapshot
     ver = SkillVersion(skill_id=skill.id, version=skill.version, manifest=skill.manifest, instructions=skill.instructions, tools=skill.tools, permissions=skill.permissions, config_schema=skill.config_schema, dependencies=skill.dependencies, changelog="Initial install")
     db.add(ver); db.commit()
@@ -509,21 +529,93 @@ async def configure_skill(skill_id: int, config: dict, current_user: User = Depe
 
 @router.post("/{skill_id}/update", response_model=SkillResponse)
 async def update_skill_version(skill_id: int, data: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Update a skill from a real source.
+
+    Previously this blindly applied whatever the client posted and flipped the
+    status to INSTALLED, so an "update" could fetch nothing at all. Now a
+    `source_url` is fetched and validated; a body without one is recorded as a
+    local edit rather than passed off as an upgrade.
+    """
     s = db.query(Skill).filter(Skill.id==skill_id, Skill.owner_id==current_user.id).first()
     if not s: raise HTTPException(status_code=404, detail="Skill not found")
+
+    source_url = (data or {}).get("source_url") or (data or {}).get("url")
+    fetched = None
+    update_kind = "local_edit"
+
+    if source_url:
+        if not str(source_url).startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail="source_url must be an http/https URL")
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                r = await client.get(source_url, headers={"User-Agent": "Mark-Imti/1.0"})
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Could not fetch the skill package: {exc}")
+        if r.status_code >= 400:
+            raise HTTPException(status_code=r.status_code,
+                                detail=f"Skill source returned HTTP {r.status_code}")
+        try:
+            fetched = r.json()
+        except Exception:
+            raise HTTPException(status_code=422,
+                                detail="Skill package is not valid JSON - nothing was applied")
+
+        if not isinstance(fetched, dict):
+            raise HTTPException(status_code=422, detail="Skill package must be a JSON object")
+
+        # Validate before touching the stored skill.
+        candidate = {
+            "name": fetched.get("name", s.name),
+            "version": fetched.get("version", s.version),
+            "manifest": fetched.get("manifest", {}),
+            "instructions": fetched.get("instructions", ""),
+            "tools": fetched.get("tools", []),
+            "permissions": fetched.get("permissions", []),
+            "config_schema": fetched.get("config_schema", {}),
+            "dependencies": fetched.get("dependencies", []),
+        }
+        if not candidate["instructions"]:
+            raise HTTPException(status_code=422, detail="Skill package has no 'instructions' - rejected")
+        errs = validate_skill_package(candidate)
+        if errs:
+            raise HTTPException(status_code=422, detail=f"Skill package failed validation: {errs}; nothing was applied")
+        update_kind = "remote"
+
     s.status = SkillStatus.UPDATING
     db.commit()
-    # snapshot current as version
+
+    # snapshot current so rollback works
     ver = SkillVersion(skill_id=s.id, version=s.version, manifest=s.manifest, instructions=s.instructions, tools=s.tools, permissions=s.permissions, config_schema=s.config_schema, dependencies=s.dependencies, changelog="Before update")
     db.add(ver)
-    # apply update
-    for k in ["version","manifest","instructions","tools","permissions","config_schema","default_config","dependencies"]:
-        if k in data:
-            setattr(s, k, data[k])
+
+    if update_kind == "remote":
+        new_version = str(fetched.get("version") or s.version)
+        manifest = dict(fetched.get("manifest") or {})
+        manifest["updated_from"] = source_url
+        s.version = new_version
+        s.manifest = manifest
+        s.instructions = fetched.get("instructions")
+        s.tools = fetched.get("tools", [])
+        s.permissions = fetched.get("permissions", [])
+        s.config_schema = fetched.get("config_schema", {})
+        s.dependencies = fetched.get("dependencies", [])
+        changelog = (fetched.get("changelog")
+                     or f"Updated from {source_url}")
+    else:
+        # No remote source: apply the supplied fields, but label it honestly.
+        manifest = dict(s.manifest or {})
+        manifest["last_update_kind"] = "local_edit"
+        s.manifest = manifest
+        for k in ["version","manifest","instructions","tools","permissions","config_schema","default_config","dependencies"]:
+            if k in data and k != "source_url":
+                setattr(s, k, data[k])
+        changelog = data.get("changelog", "Local edit (no remote source supplied)")
+
     s.status = SkillStatus.INSTALLED
     db.commit(); db.refresh(s)
-    # new version snapshot
-    ver2 = SkillVersion(skill_id=s.id, version=s.version, manifest=s.manifest, instructions=s.instructions, tools=s.tools, permissions=s.permissions, config_schema=s.config_schema, dependencies=s.dependencies, changelog=data.get("changelog","Updated"))
+
+    ver2 = SkillVersion(skill_id=s.id, version=s.version, manifest=s.manifest, instructions=s.instructions, tools=s.tools, permissions=s.permissions, config_schema=s.config_schema, dependencies=s.dependencies, changelog=changelog)
     db.add(ver2); db.commit()
     await log_audit(db, user_id=current_user.id, action="SKILL_UPDATE", resource_type="skill", resource_id=str(s.id), success=True)
     return SkillResponse.model_validate(s)

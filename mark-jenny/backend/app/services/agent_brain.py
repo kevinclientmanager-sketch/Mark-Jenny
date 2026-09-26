@@ -1084,10 +1084,35 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         return self._fallback_response(prompt)
 
     def _fallback_response(self, prompt: str) -> str:
-        """Honest notice when no AI model is reachable (never a fake smart reply)."""
+        """Honest notice when no AI model answered — states the real reason, never a fake reply."""
+        from app.models.agent import ModelProviderConfig
+        uid = getattr(self, "_user_id", None)
+        saved = []
+        if self.db is not None and uid is not None:
+            try:
+                saved = [
+                    c.provider.value
+                    for c in self.db.query(ModelProviderConfig)
+                    .filter(
+                        ModelProviderConfig.user_id == uid,
+                        ModelProviderConfig.api_key_encrypted.isnot(None),
+                    )
+                    .all()
+                ]
+            except Exception:
+                saved = []
+        saved = [p for p in saved if p != ModelProvider.OLLAMA.value]
+
+        if saved:
+            return (
+                "Your message reached me, but the model provider could not answer it. "
+                f"A key is saved for {', '.join(saved)}, so this is most likely an invalid or expired key, "
+                "no credit on the account, or a model name the provider does not recognise. "
+                "Open Settings → AI Studio and press Test on that provider to see the exact error, then send this again."
+            )
         return (
-            "I am not connected to an AI model right now, so I cannot think or act yet. "
-            "To bring me online: open Settings → AI Studio and add a provider API key "
-            "(OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI or OpenRouter), then talk to me again. "
-            "Local Ollama models also work if Ollama is running with a loaded model."
+            "I have no AI model connected yet, so I cannot think or act. "
+            "Open Settings → AI Studio, add a provider API key (OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI or OpenRouter) "
+            "and pick a model — the key is verified with a live call before it is accepted. "
+            "A local Ollama model also works if Ollama is running with a model loaded."
         )

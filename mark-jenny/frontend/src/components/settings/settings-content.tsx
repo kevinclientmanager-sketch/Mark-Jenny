@@ -91,14 +91,22 @@ export function SettingsContent() {
   const [executing, setExecuting] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [modelStatus, setModelStatus] = useState<any>(null);
+  const [aiModels, setAiModels] = useState<any[]>([]);
 
   const refreshModelStatus = () => {
     api.get("/ai/status").then((r: any) => setModelStatus(r)).catch(() => {});
+    api.get("/ai/models").then((r: any) => setAiModels(Array.isArray(r) ? r : [])).catch(() => {});
   };
 
   useEffect(() => { refreshModelStatus(); }, []);
 
   const setDefaultProvider = async (provider: string) => {
+    // Never fake a "connected" state: a default provider must already have a key.
+    const st = (modelStatus?.providers || []).find((x: any) => x.provider === provider);
+    if (!st?.has_key) {
+      toast.add({ title: "Add an API key first", description: "Set Default only works once the provider has a saved key.", type: "error" });
+      return;
+    }
     try {
       await api.post("/ai/providers", { provider, is_default: true });
       toast.add({ title: "Default model updated", type: "success" });
@@ -1019,16 +1027,17 @@ export function SettingsContent() {
                   <p className="text-sm font-medium mb-3">Cloud Models</p>
                   <div className="grid grid-cols-1 gap-3">
                     {[
-                      { provider: "OPENAI", name: "OpenAI", models: ["GPT-5", "GPT-5 Mini", "GPT-4o", "o3"], color: "text-green-600" },
-                      { provider: "ANTHROPIC", name: "Anthropic", models: ["Claude 4 Opus", "Claude 4 Sonnet", "Claude 3.5 Haiku"], color: "text-orange-600" },
-                      { provider: "GOOGLE", name: "Google", models: ["Gemini 2.5 Pro", "Gemini 2.5 Flash", "Gemini 2.0"], color: "text-blue-600" },
-                      { provider: "DEEPSEEK", name: "DeepSeek", models: ["DeepSeek V4", "DeepSeek V3", "DeepSeek Coder"], color: "text-purple-600" },
-                      { provider: "MISTRAL", name: "Mistral", models: ["Mistral Large", "Mistral Small", "Codestral"], color: "text-cyan-600" },
-                      { provider: "XAI", name: "xAI (Grok)", models: ["Grok 4", "Grok 3"], color: "text-zinc-600" },
-                      { provider: "OPENROUTER", name: "OpenRouter", models: ["All models via proxy"], color: "text-indigo-600" },
+                      { provider: "OPENAI", name: "OpenAI", color: "text-green-600" },
+                      { provider: "ANTHROPIC", name: "Anthropic", color: "text-orange-600" },
+                      { provider: "GOOGLE", name: "Google", color: "text-blue-600" },
+                      { provider: "DEEPSEEK", name: "DeepSeek", color: "text-purple-600" },
+                      { provider: "MISTRAL", name: "Mistral", color: "text-cyan-600" },
+                      { provider: "XAI", name: "xAI (Grok)", color: "text-zinc-600" },
+                      { provider: "OPENROUTER", name: "OpenRouter", color: "text-indigo-600" },
                     ].map((p) => {
                       const st = (modelStatus?.providers || []).find((x: any) => x.provider === p.provider);
                       const connected = !!st?.configured;
+                      const providerModels = aiModels.filter((m: any) => m.provider === p.provider);
                       return (
                       <div key={p.provider} className="border rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
@@ -1053,8 +1062,11 @@ export function SettingsContent() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {p.models.map((m) => (
-                            <Badge key={m} variant="secondary" className="text-[10px]">{m}</Badge>
+                          {providerModels.length === 0 && (
+                            <span className="text-[11px] text-zinc-500">No models in the catalogue for this provider yet — add one in AI Studio.</span>
+                          )}
+                          {providerModels.map((m: any) => (
+                            <Badge key={m.id} variant="secondary" className="text-[10px]">{m.display_name || m.name}</Badge>
                           ))}
                         </div>
                       </div>

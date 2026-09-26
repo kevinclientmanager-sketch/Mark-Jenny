@@ -36,6 +36,7 @@ export default function AIPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
@@ -52,15 +53,49 @@ export default function AIPage() {
 
   const handleSave = async (providerId: string) => {
     const key = keys[providerId];
-    if (!key?.trim()) return;
+    if (!key?.trim()) { toast.add({ title: "Enter an API key first", type: "error" }); return; }
     setSaving(providerId);
     try {
-      await modelsApi.upsertProvider({ provider: providerId as any, api_key: key, base_url: urls[providerId] || undefined });
+      // Prove the key works before claiming it is connected.
+      const test = await modelsApi.testProvider({ provider: providerId as any, api_key: key, base_url: urls[providerId] || undefined, model: selectedModel[providerId] || undefined });
+      if (!test?.ok) {
+        toast.add({ title: `${providerId} key rejected`, description: test?.detail || "Provider refused the key.", type: "error" });
+        return;
+      }
+      await modelsApi.upsertProvider({
+        provider: providerId as any,
+        api_key: key,
+        base_url: urls[providerId] || undefined,
+        config: selectedModel[providerId] ? { model: selectedModel[providerId] } : undefined,
+        is_default: true,
+      });
       setKeys(prev => ({ ...prev, [providerId]: "" }));
       const p = await modelsApi.listProviders();
       setProviders(p);
-      toast.add({ title: "API key saved", description: providerId, type: "success" });
+      toast.add({ title: "Provider connected", description: `${providerId} verified successfully.`, type: "success" });
     } catch (e: any) { toast.add({ title: "Couldn't save key", description: e?.message || "Try again.", type: "error" }); } finally { setSaving(null); }
+  };
+
+  const handleSelectModel = async (providerId: string, modelId: string) => {
+    setSelectedModel(prev => ({ ...prev, [providerId]: modelId }));
+    try {
+      await modelsApi.selectModel(providerId as any, modelId);
+      const p = await modelsApi.listProviders();
+      setProviders(p);
+      toast.add({ title: "Model selected", description: `${modelId} is now the default for ${providerId}.`, type: "success" });
+    } catch (e: any) { toast.add({ title: "Couldn't set model", description: e?.message || "Try again.", type: "error" }); }
+  };
+
+  const handleReTest = async (providerId: string) => {
+    setSaving(providerId);
+    try {
+      const test = await modelsApi.testProvider({ provider: providerId as any, model: selectedModel[providerId] || undefined });
+      toast.add({
+        title: test?.ok ? `${providerId} reachable` : `${providerId} problem`,
+        description: test?.detail,
+        type: test?.ok ? "success" : "error",
+      });
+    } catch (e: any) { toast.add({ title: "Test failed", description: e?.message || "", type: "error" }); } finally { setSaving(null); }
   };
 
   const confirmDelete = async () => {
@@ -149,6 +184,26 @@ export default function AIPage() {
                               </div>
                             )}
                           </div>
+                          {(() => {
+                            const provModels = models.filter(m => m.provider === prov.id);
+                            if (!provModels.length) return null;
+                            return (
+                              <div>
+                                <label className="text-xs font-medium text-zinc-600">Model used for {prov.name}</label>
+                                <select
+                                  value={selectedModel[prov.id] || ""}
+                                  onChange={e => handleSelectModel(prov.id, e.target.value)}
+                                  className="mt-1 w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                                >
+                                  <option value="">Automatic (provider default)</option>
+                                  {provModels.map(m => (
+                                    <option key={m.id} value={m.model_id}>{m.display_name || m.name} — {m.model_id}</option>
+                                  ))}
+                                </select>
+                                <p className="text-[11px] text-zinc-500 mt-1">{provModels.length} model{provModels.length === 1 ? "" : "s"} available from the backend catalogue.</p>
+                              </div>
+                            );
+                          })()}
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -159,7 +214,13 @@ export default function AIPage() {
                               {configured ? "Update Key" : "Save Key"}
                             </Button>
                             {configured && prov.id !== "OLLAMA" && (
-                              <Button size="sm" variant="outline" onClick={() => setDeleteTarget(prov.id)}>Remove</Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => handleReTest(prov.id)} disabled={saving === prov.id}>
+                                  {saving === prov.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Zap className="mr-1 h-3 w-3" />}
+                                  Test
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setDeleteTarget(prov.id)}>Remove</Button>
+                              </>
                             )}
                             <a href={prov.url} target="_blank" rel="noopener noreferrer" className="ml-auto">
                               <Button size="sm" variant="ghost"><ExternalLink className="h-3 w-3" /></Button>
@@ -175,7 +236,8 @@ export default function AIPage() {
                 <Card className="p-4">
                   <h3 className="font-medium mb-2 flex items-center gap-2"><Zap className="h-4 w-4" /> How MARK Routes Models</h3>
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    You don&apos;t need to choose models. MARK automatically picks the best one based on:
+                    Every provider you connect is verified with a live API call before it is marked Active. You can pin a
+                    specific model per provider above; otherwise MARK uses that provider&apos;s default model and routes by
                     <span className="font-medium"> task type</span> (coding, research, vision),
                     <span className="font-medium"> cost</span> (prefers cheapest),
                     <span className="font-medium"> speed</span> (fast tasks use fast models),

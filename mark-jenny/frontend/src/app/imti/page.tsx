@@ -22,6 +22,7 @@ export default function ImtiPage() {
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskType, setNewTaskType] = useState('file_manage');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const imtiChatIdRef = useRef<number | null>(null);
 
   // Always start fresh — new empty UI on every visit, no restored session
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function ImtiPage() {
     setChatInput('');
     setNewTaskDesc('');
     setActiveWorkTab('tasks');
+    imtiChatIdRef.current = null;
   }, []);
 
   const loadWorkData = async () => {
@@ -54,17 +56,42 @@ export default function ImtiPage() {
 
   const handleChatSend = async () => {
     if (!chatInput.trim() || chatLoading) return;
-    const userMsg = { role: 'user', content: chatInput, timestamp: new Date().toISOString() };
-    setChatMessages(prev => [...prev, userMsg]);
+    const now = new Date().toISOString();
+    setChatMessages(prev => [...prev, { role: 'user', content: chatInput, timestamp: now }]);
     const input = chatInput;
     setChatInput('');
     setChatLoading(true);
     try {
-      const { api } = await import('@/lib/api/client');
-      const res = await api.post<{ response: string }>('/chats/send', { message: input, mode: 'imti-chat' });
-      setChatMessages(prev => [...prev, { role: 'assistant', content: res.response || 'I received your message.', timestamp: new Date().toISOString() }]);
-    } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: "I'm here to help. What would you like to chat about?", timestamp: new Date().toISOString() }]);
+      const { chatApi } = await import('@/lib/api/chat');
+      if (imtiChatIdRef.current === null) {
+        const created = await chatApi.create({});
+        imtiChatIdRef.current = created.id;
+      }
+      const chatId = imtiChatIdRef.current;
+      const sent = await chatApi.sendMessage(chatId, { content: input });
+      const sentId = sent?.id ?? 0;
+      let reply: string | null = null;
+      for (let i = 0; i < 40; i++) {
+        const msgs = await chatApi.listMessages(chatId);
+        for (let j = msgs.length - 1; j >= 0; j--) {
+          const m = msgs[j];
+          if (m.id > sentId && m.role === 'ASSISTANT' && m.content?.trim()) { reply = m.content; break; }
+        }
+        if (reply) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: reply || 'Request accepted. No reply was produced — check Settings → AI Studio for a connected provider.',
+        timestamp: new Date().toISOString(),
+      }]);
+    } catch (e) {
+      console.error(e);
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Could not reach the Mark-Imti service. Your message was not sent — please try again.',
+        timestamp: new Date().toISOString(),
+      }]);
     } finally { setChatLoading(false); }
   };
 

@@ -220,6 +220,96 @@ async def delete_provider(provider: ModelProvider, current_user: User = Depends(
     db.delete(cfg); db.commit()
     return {"message":"Provider config deleted"}
 
+
+class ProviderTestRequest(BaseModel):
+    provider: ModelProvider
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+
+
+@router.post("/providers/test")
+async def test_provider(data: ProviderTestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Actually call the provider with a trivial prompt and report the real outcome.
+
+    This is what makes 'Connect' meaningful: a stored key that the provider
+    rejects is reported as a failure instead of silently looking configured.
+    """
+    import httpx
+
+    cfg = db.query(ModelProviderConfig).filter(
+        ModelProviderConfig.user_id == current_user.id,
+        ModelProviderConfig.provider == data.provider,
+    ).first()
+
+    router_svc = ModelRouter(db, current_user.id)
+    key = data.api_key
+    if not key and cfg:
+        key = router_svc._decrypt_key(cfg.api_key_encrypted)
+    if not key and data.provider != ModelProvider.OLLAMA:
+        raise HTTPException(status_code=400, detail="No API key supplied or saved for this provider.")
+
+    model = data.model or (cfg.config or {}).get("model") or router_svc.PROVIDER_DEFAULT_MODELS.get(data.provider, "")
+    base = (data.base_url or (cfg.base_url if cfg else None) or "").rstrip("/")
+    prompt = "Reply with the single word: OK"
+    try:
+        if data.provider == ModelProvider.ANTHROPIC:
+            async with httpx.AsyncClient(timeout=45) as client:
+                r = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                    json={"model": model or "claude-3-5-sonnet-20241022", "max_tokens": 16,
+                          "messages": [{"role": "user", "content": prompt}]},
+                )
+        elif data.provider == ModelProvider.GOOGLE:
+            async with httpx.AsyncClient(timeout=45) as client:
+                r = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model or 'gemini-2.0-flash'}:generateContent",
+                    headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+                    json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 16}},
+                )
+        else:
+            url = f"{base or 'https://api.openai.com/v1'}/chat/completions"
+            default_model = {
+                ModelProvider.OPENAI: "gpt-4o-mini",
+                ModelProvider.DEEPSEEK: "deepseek-chat",
+                ModelProvider.MISTRAL: "mistral-small-latest",
+                ModelProvider.XAI: "grok-2-latest",
+                ModelProvider.OPENROUTER: "openai/gpt-4o-mini",
+            }.get(data.provider, "gpt-4o-mini")
+            async with httpx.AsyncClient(timeout=45) as client:
+                r = await client.post(
+                    url,
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+                    json={"model": model or default_model,
+                          "messages": [{"role": "user", "content": prompt}],
+                          "max_tokens": 16},
+                )
+    except Exception as exc:
+        return {"ok": False, "provider": data.provider.value, "detail": f"Could not reach provider: {exc}"}
+
+    if r.status_code == 200:
+        return {"ok": True, "provider": data.provider.value, "model": model, "detail": "Connection succeeded."}
+
+    detail = ""
+    try:
+        body = r.json()
+        detail = (body.get("error") or {}).get("message") or body.get("detail") or json.dumps(body)[:300]
+    except Exception:
+        detail = (r.text or "")[:300]
+
+    friendly = {
+        400: "Bad request - the API key or model name was rejected.",
+        401: "Invalid API key. Check the key in Settings.",
+        402: "Payment required - the account has no credit.",
+        403: "Access denied - this key cannot use that model.",
+        404: "Model or endpoint not found. Check the model name.",
+        429: "Rate limited or out of quota. Check the account billing/limits.",
+    }.get(r.status_code, f"Provider returned HTTP {r.status_code}.")
+
+    return {"ok": False, "provider": data.provider.value, "status_code": r.status_code,
+            "detail": f"{friendly} {detail}".strip()}
+
 # --- Agents ---
 class AgentCreate(BaseModel):
     name: str

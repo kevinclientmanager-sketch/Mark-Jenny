@@ -279,7 +279,7 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         "requested_model": model,
     }
 
-    # For task-like requests with high complexity — also create a tracked Task
+    # For task-like requests with high complexity - also create a tracked Task
     if intent["complexity"] in ("complex", "moderate") and intent["confidence"] >= 0.6:
         try:
             from app.services.agent_brain import plan_heuristic
@@ -311,8 +311,54 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         except Exception:
             pass
 
+    # "Change/build the app" requests go to the self-builder (Mark writes the code)
+    if _is_self_build_request(content, intent):
+        meta.update(await _start_self_build(db, chat, content, current_user))
+
     db.add(Message(chat_id=chat.id, role=MessageRole.ASSISTANT, content=reply, message_metadata=meta))
     db.commit()
+
+
+_BUILD_VERBS = ("add", "create", "build", "implement", "add a", "make me", "write a",
+                "generate", "develop", "refactor", "fix", "update", "change", "improve",
+                "add support", "support for")
+_BUILD_TARGETS = ("app", "website", "site", "page", "component", "feature", "button",
+                  "endpoint", "api", "table", "form", "screen", "module", "plugin",
+                  "skill", "workflow", "connector", "automation", "dashboard")
+
+
+def _is_self_build_request(content: str, intent: dict) -> bool:
+    """True when the user is asking Mark to change the application itself."""
+    text = (content or "").lower()
+    if intent.get("intent") not in ("build", "create", "modify", "analyze", "task"):
+        # still allow an explicit "add X feature" phrasing
+        if not any(v in text for v in ("add ", "build ", "implement ", "create ")):
+            return False
+    has_verb = any(v in text for v in _BUILD_VERBS)
+    has_target = any(t in text for t in _BUILD_TARGETS)
+    return has_verb and has_target
+
+
+async def _start_self_build(db: Session, chat: Chat, content: str, current_user: User) -> dict:
+    """Kick off a real self-build session and report the result honestly."""
+    info: dict = {}
+    try:
+        from app.core.master_admin import is_master_admin
+        from app.models.builder_access import BuilderAccess
+        allowed = is_master_admin(current_user)
+        if not allowed:
+            g = db.query(BuilderAccess).filter(BuilderAccess.user_id == current_user.id).first()
+            allowed = bool(g and g.allowed)
+        if not allowed:
+            return {"self_build": {"started": False,
+                                   "reason": "Builder access is not enabled for this account."}}
+
+        from app.services.self_build_orchestrator import self_builder
+        session_id = await self_builder.start_build(user_request=content)
+        info["self_build"] = {"started": True, "session_id": session_id}
+    except Exception as exc:
+        info["self_build"] = {"started": False, "reason": f"{type(exc).__name__}: {exc}"}
+    return info
 
 
 def _generate_simple_reply(content: str, intent: dict, recalled: list, skills: dict) -> str:

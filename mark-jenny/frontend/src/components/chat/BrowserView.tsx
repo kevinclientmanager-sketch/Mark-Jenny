@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
-  Globe, MessageSquare, ExternalLink, RefreshCw,
+  Globe, MessageSquare, Loader2, ExternalLink, RefreshCw,
   ArrowLeft, ArrowRight, Star, Share2, Download,
   MoreHorizontal, Plus, X, Search, Shield, Bookmark, Code, Copy
 } from "lucide-react";

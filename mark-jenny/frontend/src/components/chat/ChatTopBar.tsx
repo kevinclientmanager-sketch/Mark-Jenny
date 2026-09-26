@@ -260,21 +260,23 @@ export function ChatTopBar({
             {browserSessions?.map((session, idx) => {
               const isMenuOpen = menuTab === -1 - idx;
               const isHovered = hoveredTab === -1 - idx;
+              const sid = String(session?.id ?? "");
+              if (!sid) return null;
               return (
                 <div
-                  key={session.id}
+                  key={sid}
                   onMouseEnter={() => setHoveredTab(-1 - idx)}
                   onMouseLeave={() => { if (menuTab !== -1 - idx) setHoveredTab(null); }}
-                  onClick={() => onSelectBrowserSession?.(session.id)}
+                  onClick={() => onSelectBrowserSession?.(sid)}
                   className={cn(
                     "group relative flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors shrink-0 max-w-[180px]",
                     "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
                   )}
-                  title={session.url || session.name || session.id}
+                  title={session.url || session.name || sid}
                   style={{ overflow: "visible" }}
                 >
                   <Globe className="h-3 w-3 shrink-0 text-blue-500" />
-                  <span className="truncate">{session.name || session.url?.replace(/https?:\/\//, "").split("/")[0] || `Session ${session.id.slice(0, 8)}`}</span>
+                  <span className="truncate">{session.name || session.url?.replace(/https?:\/\//, "").split("/")[0] || `Session ${sid.slice(0, 8)}`}</span>
                   {(isHovered || isMenuOpen) && (
                     <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button

@@ -172,7 +172,21 @@ export default function ChatPage() {
   }, []);
 
   const fetchBrowseSessions = useCallback(async () => {
-    try { setBrowseSessions(await browserApi.listSessions()); } catch { setBrowseSessions([]); }
+    try {
+      const raw = await browserApi.listSessions();
+      const list = Array.isArray(raw) ? raw : (raw as any)?.sessions || [];
+      // Normalize backend shape ({session_id, current_url}) to UI shape ({id, url})
+      setBrowseSessions(
+        list
+          .filter((s: any) => s && (s.session_id || s.id))
+          .map((s: any) => ({
+            id: String(s.id ?? s.session_id),
+            url: s.url ?? s.current_url ?? "",
+            name: s.name ?? "",
+            status: s.status ?? (s.has_page ? "ready" : "new"),
+          }))
+      );
+    } catch { setBrowseSessions([]); }
   }, []);
 
   // --- Tab management (no forward deps) ---

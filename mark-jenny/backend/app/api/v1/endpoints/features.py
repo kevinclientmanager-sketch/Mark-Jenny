@@ -383,6 +383,12 @@ async def mcp_connect_from_registry(
 
     started = None
     if data.auto_start:
+        # Re-run the handshake cleanly: a previously running process would
+        # short-circuit start_server and skip the tools/list discovery.
+        try:
+            await mcp_client.stop_server(entry["id"])
+        except Exception:
+            pass
         started = await mcp_client.start_server(entry["id"])
         # Record any tools the server advertised so they are browsable.
         mcp_client.servers[entry["id"]]["tools"] = mcp_client.servers[entry["id"]].get("tools", [])

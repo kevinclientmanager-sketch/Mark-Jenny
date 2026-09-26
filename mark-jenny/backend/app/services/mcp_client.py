@@ -84,6 +84,9 @@ class MCPClient:
         return self.servers.get(server_id)
 
     def add_server(self, server_id: str, config: Dict[str, Any]) -> Dict:
+        # Keep any tools already discovered for this server so re-saving a
+        # credential does not wipe the browsable tool list.
+        existing_tools = (self.servers.get(server_id) or {}).get("tools", [])
         self.servers[server_id] = {
             "name": config.get("name", server_id),
             "command": config.get("command", ""),
@@ -93,7 +96,7 @@ class MCPClient:
             "url": config.get("url", ""),
             "enabled": config.get("enabled", True),
             "auto_start": config.get("auto_start", False),
-            "tools": [],
+            "tools": existing_tools,
             "added_at": datetime.utcnow().isoformat(),
         }
         self._save_config()

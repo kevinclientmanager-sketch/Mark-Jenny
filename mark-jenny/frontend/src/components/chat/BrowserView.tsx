@@ -2,8 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
-  Globe, MessageSquare, ListChecks, Loader2, ExternalLink, RefreshCw,
-  CheckCircle2, Circle, ArrowLeft, ArrowRight, Star, Share2, Download,
+  Globe, MessageSquare, ExternalLink, RefreshCw,
+  ArrowLeft, ArrowRight, Star, Share2, Download,
   MoreHorizontal, Plus, X, Search, Shield, Bookmark, Code, Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,37 +23,10 @@ interface BrowserViewProps {
   onVoiceAsk?: (text: string) => Promise<string | null>;
 }
 
-interface TaskStep {
-  label: string;
-  status: "done" | "active" | "pending";
-}
-
 interface BrowserTab {
   id: string;
   title: string;
   url: string;
-}
-
-function parseBrowserSteps(messages: Message[]): TaskStep[] {
-  const steps: TaskStep[] = [];
-  for (const msg of messages) {
-    if (msg.role === "ASSISTANT" && msg.content) {
-      const lines = msg.content.split("\n");
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (/^\d+[\.\)]\s/.test(trimmed) || /^[-•]\s/.test(trimmed)) {
-          const label = trimmed.replace(/^[\d\.\)•-]+\s*/, "");
-          if (label.length > 5) steps.push({ label, status: "done" });
-        }
-      }
-    }
-  }
-  if (steps.length === 0) {
-    steps.push({ label: "Waiting for agent to start browsing...", status: "active" });
-  } else {
-    steps[steps.length - 1].status = "active";
-  }
-  return steps;
 }
 
 function extractBrowserUrl(messages: Message[]): string | null {
@@ -71,7 +44,6 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
   const [chatWidth, setChatWidth] = useState(45);
   const draggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const taskSteps = parseBrowserSteps(messages);
   const browserUrl = extractBrowserUrl(messages);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [browserSessionId, setBrowserSessionId] = useState<string | null>(null);
@@ -163,31 +135,6 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
     <div ref={containerRef} className="flex-1 flex min-h-0">
       {/* Left: chat with agent */}
       <div className="flex flex-col min-w-0" style={{ width: `${chatWidth}%` }}>
-
-        {taskSteps.length > 0 && (
-          <div className="shrink-0 border-b bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 max-h-36 overflow-y-auto">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <ListChecks className="h-3 w-3 text-zinc-400" />
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Browse Plan</span>
-            </div>
-            <div className="space-y-1">
-              {taskSteps.map((step, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  {step.status === "done" ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
-                  ) : step.status === "active" ? (
-                    <Loader2 className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5 animate-spin" />
-                  ) : (
-                    <Circle className="h-3.5 w-3.5 text-zinc-300 shrink-0 mt-0.5" />
-                  )}
-                  <span className={cn("leading-tight", step.status === "active" ? "text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-500")}>
-                    {step.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
           {messages.length === 0 ? (

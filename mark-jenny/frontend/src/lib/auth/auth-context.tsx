@@ -27,7 +27,7 @@ interface AuthContextType {
 // TEMPORARY: auto-login so the UI opens directly without the login screen.
 // Set enabled: false to restore full authentication (login required).
 const AUTO_LOGIN_DEMO = {
-  enabled: true,
+  enabled: false,
   email: "kevin.clientmanager@gmail.com",
   password: "Admin1234",
 };

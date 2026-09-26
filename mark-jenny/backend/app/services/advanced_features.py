@@ -271,7 +271,7 @@ class KnowledgeGraph:
             )
             ai_relations = _call_ai(
                 f"Discover relationships between these entities:\n{json.dumps(entity_names[:20])}",
-                system=system, timeout=60,
+                system=system, timeout=15,
             )
             if ai_relations:
                 try:

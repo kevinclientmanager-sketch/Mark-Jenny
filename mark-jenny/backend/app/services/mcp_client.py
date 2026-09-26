@@ -178,7 +178,13 @@ class MCPClient:
                     self.active_connections[server_id]["tools"] = tools
                     self._save_config()
 
-            return {"success": True, "message": f"Server {server_id} started", "tools": len(self.servers[server_id].get("tools", []))}
+            return {
+                "success": True,
+                "message": f"Server {server_id} started",
+                "tools": len(self.servers[server_id].get("tools", [])),
+                # The actual tool definitions, so callers can browse them.
+                "tool_list": self.servers[server_id].get("tools", []),
+            }
 
         except Exception as e:
             return {"success": False, "error": str(e)}

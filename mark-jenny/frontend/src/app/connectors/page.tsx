@@ -65,7 +65,7 @@ export default function ConnectorsPage() {
   const startRegistry = async (id: string) => {
     try {
       const r = await api.post<any>(`/features/mcp/servers/${id}/start`, {});
-      const n = r?.tools?.length ?? r?.result?.tools?.length ?? 0;
+      const n = (r?.tool_list || r?.tools || []).length;
       toast.add({
         title: r?.success ? `${id} started` : `${id} failed to start`,
         description: r?.success ? `${n} tool(s) advertised.` : (r?.error || "unknown error"),
@@ -90,7 +90,7 @@ export default function ConnectorsPage() {
         env: registryEnv, auto_start: true,
       });
       const ok = r?.start?.success;
-      const toolsFound = r?.start?.tools?.length ?? 0;
+      const toolsFound = (r?.start?.tool_list || r?.start?.tools || []).length;
       toast.add({
         title: ok ? `${registryTarget.label} connected` : `${registryTarget.label} added but not started`,
         description: ok

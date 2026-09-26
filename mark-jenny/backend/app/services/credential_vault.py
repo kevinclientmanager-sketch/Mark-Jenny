@@ -56,8 +56,18 @@ def _derive_key(password: str) -> bytes:
 
 
 def _get_master_key() -> str:
-    """Get or create master encryption key."""
-    # Use a machine-specific key derived from hostname + user
+    """Get or create master encryption key.
+
+    Uses CREDENTIAL_VAULT_KEY when provided. Falling back to a value derived
+    from hostname+user meant every container restart (i.e. every deploy)
+    produced a different key and rendered all stored credentials
+    undecryptable.
+    """
+    import os as _os
+    env_key = _os.environ.get("CREDENTIAL_VAULT_KEY") or _os.environ.get("SECRET_KEY")
+    if env_key:
+        return hashlib.sha256(env_key.encode()).hexdigest()
+    # Local development fallback: machine-specific key derived from hostname + user
     import platform
     import getpass
     raw = f"{platform.node()}-{getpass.getuser()}-MARK-IMTI-vault"

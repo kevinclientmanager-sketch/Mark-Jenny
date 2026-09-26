@@ -156,10 +156,16 @@ class MCPClient:
             }
 
             await self._send_message(server_id, init_msg)
-            response = await self._read_message(server_id)
+            response = await self._read_response_for(server_id, 1, timeout=30)
 
-            if response:
-                # Request tool list
+            if response and "result" in response:
+                # Proper MCP handshake: acknowledge before asking for tools.
+                try:
+                    await self._send_message(server_id, {
+                        "jsonrpc": "2.0", "method": "notifications/initialized",
+                    })
+                except Exception:
+                    pass
                 tools_msg = {
                     "jsonrpc": "2.0",
                     "id": 2,
@@ -167,13 +173,15 @@ class MCPClient:
                     "params": {},
                 }
                 await self._send_message(server_id, tools_msg)
-                tools_response = await self._read_message(server_id)
+                tools_response = await self._read_response_for(server_id, 2, timeout=30)
 
                 if tools_response and "result" in tools_response:
-                    tools = tools_response["result"].get("tools", [])
+                    tools = tools_response["result"].get("tools", []) or []
                     self.servers[server_id]["tools"] = [
-                        {"name": t.get("name"), "description": t.get("description", "")}
-                        for t in tools
+                        {"name": t.get("name"),
+                         "description": t.get("description", ""),
+                         "inputSchema": t.get("inputSchema") or t.get("input_schema") or {}}
+                        for t in tools if isinstance(t, dict) and t.get("name")
                     ]
                     self.active_connections[server_id]["tools"] = tools
                     self._save_config()
@@ -199,10 +207,29 @@ class MCPClient:
                 conn["process"].kill()
         return {"success": True}
 
+    async def _read_response_for(self, server_id: str, msg_id: int, timeout: float = 20) -> Optional[Dict]:
+        """Read until the JSON-RPC response with this id arrives.
+
+        MCP servers interleave notifications (e.g. notifications/initialized)
+        between request/response pairs, so reading a single line can easily
+        consume a notification and miss the actual result.
+        """
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + timeout
+        while loop.time() < deadline:
+            remaining = max(0.5, deadline - loop.time())
+            msg = await self._read_message(server_id, timeout=remaining)
+            if msg is None:
+                break
+            if msg.get("id") == msg_id:
+                return msg
+            # notifications / server-initiated requests carry no matching id
+        return None
+
     async def call_tool(self, server_id: str, tool_name: str, arguments: Dict = None) -> Dict:
         conn = self.active_connections.get(server_id)
         if not conn:
-            return {"success": False, "error": f"Server {server_id} not running"}
+            return {"success": False, "error": f"Server {server_id} not running (it may have stopped - start it again)"}
 
         try:
             msg = {
@@ -215,7 +242,7 @@ class MCPClient:
                 },
             }
             await self._send_message(server_id, msg)
-            response = await self._read_message(server_id)
+            response = await self._read_response_for(server_id, 3, timeout=120)
 
             if response and "result" in response:
                 return {"success": True, "result": response["result"]}

@@ -107,7 +107,9 @@ MCP_REGISTRY: List[Dict[str, Any]] = [
         "category": "Files",
         "description": "Grants sandboxed read/write access to a chosen directory.",
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+        # The filesystem server REQUIRES at least one directory argument;
+        # without it the process exits immediately and no tools are advertised.
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/mark-imti-workspace"],
         "env": {},
         "required_env": [],
         "optional_env": [],

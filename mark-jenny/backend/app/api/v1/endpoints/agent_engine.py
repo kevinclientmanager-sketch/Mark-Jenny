@@ -72,9 +72,47 @@ def get_proactive():
 
 
 def get_router():
+    """Router with the real model catalogue registered.
+
+    Previously the registry was never populated, so /route always answered
+    `model: None` and /router/stats reported 0 registered models.
+    """
     global _router
     if _router is None:
         _router = ModelRouter()
+        try:
+            from app.db.base import SessionLocal
+            from app.models.agent import Model
+            from app.services.model_router import ensure_default_models
+            from app.core.model_router import ModelConfig
+            db = SessionLocal()
+            try:
+                ensure_default_models(db)
+                for m in db.query(Model).filter(Model.is_active.is_(True)).all():
+                    provider = m.provider.value if hasattr(m.provider, "value") else str(m.provider)
+                    cfg = ModelConfig(
+                        name=m.name,
+                        provider=provider,
+                        model_id=m.model_id,
+                        api_key="",
+                        base_url="",
+                        max_tokens=m.max_output_tokens or 4096,
+                        cost_per_1k_input=float(m.cost_per_1k_input or 0),
+                        cost_per_1k_output=float(m.cost_per_1k_output or 0),
+                        strengths=list(m.capabilities or []),
+                        weaknesses=[],
+                        latency_ms=0,
+                        reliability=1.0,
+                    )
+                    try:
+                        _router.register_model(m.model_id, cfg)
+                    except Exception:
+                        continue
+            finally:
+                db.close()
+        except Exception:
+            # No DB available - the router still works, just with no catalogue.
+            pass
     return _router
 
 

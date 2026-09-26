@@ -35,6 +35,13 @@ async def list_agents(
     q = db.query(Agent).filter(Agent.is_active == True)
     total = q.count()
     agents = q.offset((page - 1) * page_size).limit(page_size).all()
+    model_names = {}
+    try:
+        from app.models.agent import Model
+        for m in db.query(Model).all():
+            model_names[m.id] = m.display_name or m.name
+    except Exception:
+        pass
     return AgentListResponse(
         agents=[
             {
@@ -43,6 +50,12 @@ async def list_agents(
                 "type": a.type.value if hasattr(a.type, "value") else str(a.type),
                 "description": a.description,
                 "available_skills": a.available_skills or [],
+                "available_tools": a.available_tools or [],
+                "model_used": model_names.get(a.model_id),
+                # Aliases so clients that expect agent_type/status (the Agents
+                # page) and clients that expect type/is_active both work.
+                "agent_type": a.type.value if hasattr(a.type, "value") else str(a.type),
+                "status": "active" if a.is_active else "inactive",
                 "is_active": a.is_active,
                 "created_at": str(a.created_at) if a.created_at else "",
             }

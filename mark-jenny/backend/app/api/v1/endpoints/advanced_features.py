@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -155,10 +155,26 @@ async def get_graph(project_id: Optional[int]=None, current_user: User = Depends
 
 # Security - rate limit info
 @router.get("/security/rate-limit")
-async def get_rate_limit(current_user: User = Depends(get_current_user)):
+async def get_rate_limit(current_user: User = Depends(get_current_user), request: Request = None):
     from app.core.rate_limit import limiter, auth_limiter
+    # Report the caller's actual remaining budget instead of a bare string.
+    ip = None
+    try:
+        ip = request.client.host if request and request.client else None
+    except Exception:
+        ip = None
+    used = 0
+    if ip:
+        try:
+            used = len(limiter.clients.get(ip, []))
+        except Exception:
+            used = 0
     return {
         "general": f"{limiter.max_requests} req per {limiter.window}s per IP",
         "auth": f"{auth_limiter.max_requests} req per {auth_limiter.window}s per IP",
-        "note": "Enforced via middleware, 429 on exceed"
+        "max_requests": limiter.max_requests,
+        "window_seconds": limiter.window,
+        "used": used,
+        "remaining": max(0, limiter.max_requests - used),
+        "note": "Enforced via middleware, 429 on exceed",
     }

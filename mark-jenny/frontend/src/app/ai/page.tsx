@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
-import { modelsApi, AIModel, ProviderConfig } from "@/lib/api/models";
+import { modelsApi, AIModel, ProviderConfig, Agent } from "@/lib/api/models";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,8 @@ export default function AIPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selectedModel, setSelectedModel] = useState<Record<string, string>>({});
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentsError, setAgentsError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +48,14 @@ export default function AIPage() {
         setProviders(p);
         setModels(m);
       } catch {} finally { setLoading(false); }
+      // Agents come from the database, never a hardcoded list.
+      try {
+        setAgents(await modelsApi.listAgents());
+        setAgentsError(null);
+      } catch (e: any) {
+        setAgents([]);
+        setAgentsError(e?.message || "request failed");
+      }
     })();
   }, []);
 
@@ -278,28 +288,37 @@ export default function AIPage() {
               </TabsContent>
 
               <TabsContent value="agents" className="overflow-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {[
-                    { name: "Primary Agent", type: "MAIN", desc: "Handles all general tasks, plans, delegates." },
-                    { name: "Researcher", type: "RESEARCH", desc: "Deep web search, analysis, citations." },
-                    { name: "Coder", type: "CODING", desc: "Writes, debugs, and deploys code." },
-                    { name: "Browser", type: "BROWSER", desc: "Web automation, scraping, form filling." },
-                    { name: "Writer", type: "DOCUMENT", desc: "Reports, articles, presentations." },
-                    { name: "Data Analyst", type: "SPREADSHEET", desc: "Excel, CSV, data analysis." },
-                    { name: "Designer", type: "DESIGN", desc: "Images, UI mockups, visual content." },
-                    { name: "Supervisor", type: "SUPERVISOR", desc: "Oversees multi-step workflows." },
-                    { name: "Memory Agent", type: "MEMORY", desc: "Manages context and knowledge." },
-                  ].map(a => (
-                    <Card key={a.type} className="p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Bot className="h-4 w-4 text-blue-500" />
-                        <p className="font-medium text-sm">{a.name}</p>
-                        <Badge variant="outline" className="text-[10px]">{a.type}</Badge>
-                      </div>
-                      <p className="text-xs text-zinc-500">{a.desc}</p>
-                    </Card>
-                  ))}
-                </div>
+                {loading ? <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div> : agentsError ? (
+                  <Card className="p-4 border-red-300 dark:border-red-800">
+                    <p className="text-sm text-red-600 flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Could not load agents: {agentsError}</p>
+                  </Card>
+                ) : agents.length === 0 ? (
+                  <Card className="p-6 text-center">
+                    <p className="text-sm text-zinc-500">No agents are registered in the database yet.</p>
+                    <p className="text-xs text-zinc-400 mt-1">Agents are created from the backend <code className="text-[10px]">agents</code> table (type, tools, skills, model binding).</p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {agents.map(a => (
+                      <Card key={a.id} className="p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Bot className="h-4 w-4 text-blue-500" />
+                          <p className="font-medium text-sm">{a.name}</p>
+                          <Badge variant="outline" className="text-[10px]">{a.type}</Badge>
+                        </div>
+                        {a.description && <p className="text-xs text-zinc-500">{a.description}</p>}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {a.model_name && <Badge variant="secondary" className="text-[10px]">{a.model_name}</Badge>}
+                          {(a.available_tools || []).slice(0, 3).map(t => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}
+                          {(a.available_skills || []).slice(0, 2).map(s => <Badge key={s} className="text-[10px] bg-indigo-100 text-indigo-700">{s}</Badge>)}
+                        </div>
+                        <p className="text-[10px] text-zinc-400 mt-1">
+                          {a.available_tools?.length || 0} tools &middot; {a.available_skills?.length || 0} skills
+                        </p>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </main>

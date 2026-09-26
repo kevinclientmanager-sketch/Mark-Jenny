@@ -32,11 +32,33 @@ try:
 except: PIL_AVAILABLE = False
 
 
+_LAST_AI_OK = False
+
+
+def _ai_used() -> bool:
+    """True only when the most recent _call_ai() returned real model content."""
+    return _LAST_AI_OK
+
+
+def _result_message(kind: str) -> str:
+    """Honest result text: never claim AI output when no model answered."""
+    if _ai_used():
+        return f"{kind} generated with AI"
+    return (
+        f"{kind} saved as a TEMPLATE skeleton only - no AI model answered, so this is NOT real "
+        f"output. Connect a provider in Settings > AI Studio, then generate again."
+    )
+
+
 def _call_ai(prompt: str, system: str = "", timeout: int = 120) -> str:
-    """Call AI model — tries Ollama → OpenAI-compatible → fallback."""
+    """Call AI model - tries Ollama -> OpenAI-compatible -> user cloud provider."""
+    global _LAST_AI_OK
+    _LAST_AI_OK = False
     try:
         from app.services.model_caller import model_caller
-        return model_caller.call(prompt, system_prompt=system, timeout=timeout)
+        out = model_caller.call(prompt, system_prompt=system, timeout=timeout)
+        _LAST_AI_OK = bool(out and str(out).strip())
+        return out or ""
     except Exception:
         pass
     # Fallback: try Ollama directly
@@ -56,8 +78,11 @@ def _call_ai(prompt: str, system: str = "", timeout: int = 120) -> str:
             json={"model": model_name, "prompt": prompt, "system": system, "stream": False},
             timeout=timeout,
         )
-        return resp.json().get("response", "")
+        out = resp.json().get("response", "")
+        _LAST_AI_OK = bool(out and str(out).strip())
+        return out or ""
     except Exception:
+        _LAST_AI_OK = False
         return ""
 
 
@@ -125,7 +150,7 @@ class GenerativeEngine:
             title = prompt[:30].replace("\n", " ")
             html = f"""<!DOCTYPE html><html><head><title>{title}</title><meta charset="utf-8"><style>body{{font-family:system-ui;max-width:800px;margin:40px auto;padding:20px}}h1{{color:#2563eb}}</style></head><body><h1>{title}</h1><p>Generated from: {prompt}</p><p>Built by MARK-IMTI</p></body></html>"""
         info = self._save_file(dir, f"website_{uuid.uuid4().hex[:6]}.html", html.encode(), owner_id, project_id, task_id)
-        return {"type":"website", "files":[info], "preview_url": f"/files/{info['id']}/download", "message":"Website generated with AI"}
+        return {"type":"website", "files":[info], "preview_url": f"/files/{info['id']}/download", "message": _result_message("Website"), "ai_powered": _ai_used()}
 
     def generate_app(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "apps")
@@ -157,7 +182,7 @@ class GenerativeEngine:
         if "python" in prompt.lower() or "flask" in prompt.lower() or "fastapi" in prompt.lower():
             ext = ".py"
         info = self._save_file(dir, f"app_{uuid.uuid4().hex[:6]}{ext}", code.encode(), owner_id, project_id, task_id)
-        return {"type":"app", "files":[info], "framework":"Next.js" if ext==".tsx" else "Python", "message":"App generated with AI"}
+        return {"type":"app", "files":[info], "framework":"Next.js" if ext==".tsx" else "Python", "message": _result_message("App"), "ai_powered": _ai_used()}
 
     def generate_slides(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "slides")
@@ -208,7 +233,7 @@ class GenerativeEngine:
             prs.save(str(tmp))
             info = self._save_file(dir, tmp.name, tmp.read_bytes(), owner_id, project_id, task_id)
             tmp.unlink(missing_ok=True)
-            return {"type":"slides", "files":[info], "slide_count": len(slides_data) if slides_data else 1, "message":"Slides generated with AI (PPTX)"}
+            return {"type":"slides", "files":[info], "slide_count": len(slides_data) if slides_data else 1, "message": _result_message("Slides deck"), "ai_powered": _ai_used()}
         else:
             md_parts = [f"# Slides: {prompt}\n"]
             if slides_data and isinstance(slides_data, list):
@@ -242,7 +267,7 @@ class GenerativeEngine:
                 svg = svg[:-3]
             svg = svg.strip()
             info = self._save_file(dir, f"image_{uuid.uuid4().hex[:6]}.svg", svg.encode(), owner_id, project_id, task_id)
-            return {"type":"image", "files":[info], "message":"Image generated with AI (SVG)"}
+            return {"type":"image", "files":[info], "message": _result_message("Image"), "ai_powered": _ai_used()}
         # Fallback
         if PIL_AVAILABLE:
             img = Image.new('RGB', (800, 600), color=(37, 99, 235))
@@ -315,7 +340,7 @@ class GenerativeEngine:
             wb.save(str(tmp))
             info = self._save_file(dir, tmp.name, tmp.read_bytes(), owner_id, project_id, task_id)
             tmp.unlink(missing_ok=True)
-            return {"type": "spreadsheet", "files": [info], "rows": len(sheet_data.get("rows", [])) if sheet_data else 5, "message": "Spreadsheet generated with AI (XLSX)"}
+            return {"type": "spreadsheet", "files": [info], "rows": len(sheet_data.get("rows", [])) if sheet_data else 5, "message": _result_message("Spreadsheet"), "ai_powered": _ai_used()}
         # CSV fallback
         if sheet_data and "headers" in sheet_data:
             lines = [",".join(sheet_data["headers"])]
@@ -352,7 +377,7 @@ class GenerativeEngine:
         else:
             content = f"# Document: {prompt}\n\nGenerated by MARK-IMTI\n{datetime.utcnow().isoformat()}\n\n{prompt}"
         info = self._save_file(dir, f"doc_{uuid.uuid4().hex[:6]}.md", content.encode(), owner_id, project_id, task_id)
-        return {"type": "document", "files": [info], "message": "Document generated with AI"}
+        return {"type": "document", "files": [info], "message": _result_message("Document"), "ai_powered": _ai_used()}
 
     def generate_code(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "code")
@@ -390,7 +415,7 @@ class GenerativeEngine:
             code = f"# Generated code for: {prompt}\n# {datetime.utcnow().isoformat()}\n\ndef main():\n    print('Hello from MARK')\n    return 42\n\nif __name__ == '__main__':\n    main()\n"
             ext = ".py"
         info = self._save_file(dir, f"code_{uuid.uuid4().hex[:6]}{ext}", code.encode(), owner_id, project_id, task_id)
-        return {"type": "code", "files": [info], "language": ext[1:], "message": "Code generated with AI"}
+        return {"type": "code", "files": [info], "language": ext[1:], "message": _result_message("Code"), "ai_powered": _ai_used()}
 
     def generate_research(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "research")
@@ -422,7 +447,7 @@ class GenerativeEngine:
         else:
             report = f"# Research Report: {prompt}\n\nGenerated {datetime.utcnow().isoformat()}\n\n## Executive Summary\nResearch on \"{prompt}\" shows key findings...\n\n## Sources\n- Source 1: https://example.com\n- Source 2: https://example.com/2\n\n## Synthesis\nDetailed analysis of {prompt[:50]}..."
         info = self._save_file(dir, f"research_{uuid.uuid4().hex[:6]}.md", report.encode(), owner_id, project_id, task_id)
-        return {"type": "research", "files": [info], "message": "Research report generated with AI"}
+        return {"type": "research", "files": [info], "message": _result_message("Research report"), "ai_powered": _ai_used()}
 
     def generate_video(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "videos")
@@ -449,7 +474,7 @@ class GenerativeEngine:
         else:
             content = f"Video script for: {prompt}\nGenerated {datetime.utcnow().isoformat()}\n\nSCENE 1: Intro\nSCENE 2: Main\nSCENE 3: Outro"
         info = self._save_file(dir, f"video_{uuid.uuid4().hex[:6]}.md", content.encode(), owner_id, project_id, task_id)
-        return {"type": "video", "files": [info], "message": "Video script generated with AI"}
+        return {"type": "video", "files": [info], "message": _result_message("Video script"), "ai_powered": _ai_used()}
 
     def generate_audio(self, prompt: str, owner_id: int, project_id: Optional[int]=None, task_id: Optional[int]=None) -> Dict:
         dir = self._project_dir(project_id, "audio")
@@ -476,7 +501,7 @@ class GenerativeEngine:
         else:
             content = f"Audio script for: {prompt}\nGenerated {datetime.utcnow().isoformat()}\n\nTTS Text: {prompt}"
         info = self._save_file(dir, f"audio_{uuid.uuid4().hex[:6]}.md", content.encode(), owner_id, project_id, task_id)
-        return {"type": "audio", "files": [info], "message": "Audio script generated with AI"}
+        return {"type": "audio", "files": [info], "message": _result_message("Audio script"), "ai_powered": _ai_used()}
 
 
 generative_engine = GenerativeEngine()

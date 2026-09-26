@@ -92,13 +92,31 @@ export function SettingsContent() {
   const [users, setUsers] = useState<any[]>([]);
   const [modelStatus, setModelStatus] = useState<any>(null);
   const [aiModels, setAiModels] = useState<any[]>([]);
+  const [aiPrefs, setAiPrefs] = useState<any>({});
+  const [aiPrefsSaved, setAiPrefsSaved] = useState(false);
+
+  const loadAiPrefs = () => {
+    api.get("/settings/ai").then((r: any) => { if (r) setAiPrefs(r); }).catch(() => {});
+  };
+
+  const saveAiPrefs = async (patch: Record<string, any>) => {
+    setAiPrefs((p: any) => ({ ...p, ...patch }));
+    try {
+      const r: any = await api.patch("/settings/ai", patch);
+      if (r) setAiPrefs(r);
+      setAiPrefsSaved(true);
+      setTimeout(() => setAiPrefsSaved(false), 2500);
+    } catch {
+      toast.add({ title: "Couldn't save model settings", type: "error" });
+    }
+  };
 
   const refreshModelStatus = () => {
     api.get("/ai/status").then((r: any) => setModelStatus(r)).catch(() => {});
     api.get("/ai/models").then((r: any) => setAiModels(Array.isArray(r) ? r : [])).catch(() => {});
   };
 
-  useEffect(() => { refreshModelStatus(); }, []);
+  useEffect(() => { refreshModelStatus(); loadAiPrefs(); }, []);
 
   const setDefaultProvider = async (provider: string) => {
     // Never fake a "connected" state: a default provider must already have a key.
@@ -1130,18 +1148,23 @@ export function SettingsContent() {
                   <p className="text-sm font-medium mb-3">Model Behavior</p>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Default model" hint="Used when Auto routing is off.">
-                      <select className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
+                      <select
+                        className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800"
+                        value={aiPrefs.default_model || "auto"}
+                        onChange={(e) => saveAiPrefs({ default_model: e.target.value === "auto" ? null : e.target.value })}
+                      >
                         <option value="auto">Auto (smart routing)</option>
-                        <option value="mimo-v2.5-free">MiMo V2.5 Free</option>
-                        <option value="gpt-5">GPT-5</option>
-                        <option value="claude-4">Claude 4</option>
-                        <option value="gemini-2.5">Gemini 2.5</option>
-                        <option value="deepseek-v4">DeepSeek V4</option>
-                        <option value="qwen3.5:8b">Qwen 3.5 8B (Local)</option>
+                        {aiModels.map((m: any) => (
+                          <option key={m.id} value={m.model_id}>{m.display_name || m.name} — {m.model_id}</option>
+                        ))}
                       </select>
                     </Field>
                     <Field label="Routing strategy" hint="How Mark picks the best model per task.">
-                      <select className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800">
+                      <select
+                        className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-zinc-800"
+                        value={aiPrefs.routing_strategy || "balanced"}
+                        onChange={(e) => saveAiPrefs({ routing_strategy: e.target.value })}
+                      >
                         <option value="balanced">Balanced (quality + cost)</option>
                         <option value="quality">Quality first</option>
                         <option value="speed">Speed first</option>
@@ -1152,12 +1175,25 @@ export function SettingsContent() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <Field label="Temperature" hint="Creativity level (0 = precise, 1 = creative).">
-                      <Input type="number" min={0} max={1} step={0.1} defaultValue={0.7} className="w-32" />
+                      <Input
+                        type="number" min={0} max={2} step={0.1}
+                        value={aiPrefs.temperature ?? 0.3}
+                        onChange={(e) => setAiPrefs((p: any) => ({ ...p, temperature: Number(e.target.value) }))}
+                        onBlur={() => saveAiPrefs({ temperature: aiPrefs.temperature })}
+                        className="w-32"
+                      />
                     </Field>
                     <Field label="Max output tokens" hint="Maximum response length.">
-                      <Input type="number" min={256} max={128000} step={256} defaultValue={8192} className="w-32" />
+                      <Input
+                        type="number" min={256} max={128000} step={256}
+                        value={aiPrefs.max_tokens ?? 4096}
+                        onChange={(e) => setAiPrefs((p: any) => ({ ...p, max_tokens: Number(e.target.value) }))}
+                        onBlur={() => saveAiPrefs({ max_tokens: aiPrefs.max_tokens })}
+                        className="w-32"
+                      />
                     </Field>
                   </div>
+                  {aiPrefsSaved && <p className="text-[11px] text-green-600 mt-2">Saved to your account.</p>}
                 </div>
 
                 {/* AirLLM - Layer-by-layer 70B inference */}

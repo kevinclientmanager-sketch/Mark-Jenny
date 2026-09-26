@@ -13,6 +13,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.audit import AuditLog, AuditAction
 from app.models.builder_access import BuilderAccess
 from app.models.generated import GeneratedWebsite, GeneratedApp, GeneratedType, GeneratedStatus, BrowserSession
+from app.models.user_settings import UserSettings
 
 __all__ = [
     "User", "UserRole", "Session",
@@ -30,4 +31,5 @@ __all__ = [
     "AuditLog", "AuditAction",
     "BuilderAccess",
     "GeneratedWebsite", "GeneratedApp", "GeneratedType", "GeneratedStatus", "BrowserSession",
+    "UserSettings",
 ]

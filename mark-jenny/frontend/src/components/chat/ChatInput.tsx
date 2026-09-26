@@ -578,6 +578,9 @@ export function ChatInput({
                 disabled={disabled}
               />
               <div className="flex shrink-0 items-center gap-1 pb-0.5">
+                {/* Model / provider selector - one trigger, compact panel */}
+                <ModelProviderPicker mode={mode} />
+
                 {/* Think button */}
                 <button
                   onClick={() => setThink((v) => !v)}
@@ -619,11 +622,6 @@ export function ChatInput({
               </div>
             </div>
           )}
-
-          {/* Provider + model selector - inside the composer's bottom border, centred */}
-          <div className="border-t border-zinc-100 px-2 py-1 dark:border-zinc-800">
-            <ModelProviderPicker mode={mode} />
-          </div>
         </div>
         <p className="mt-2 text-center text-[11px] text-zinc-400">
           {mode === "work"

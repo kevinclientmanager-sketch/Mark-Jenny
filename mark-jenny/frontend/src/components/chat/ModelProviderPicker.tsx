@@ -1,36 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Cpu, Check, Loader2, Search, Sparkles, Server, Zap } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ChevronDown, ChevronRight, Cpu, Check, Loader2, Search, Server, KeyRound, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { modelsApi, ProviderCatalogEntry, AIModel } from "@/lib/api/models";
 import { cn } from "@/lib/utils";
 
 /**
- * Model + provider picker that lives INSIDE the composer box.
- * Two independent drawers: one for the provider, one for the model.
- * Selection is persisted to the account so it applies to chat, tasks,
- * quick actions and generation alike.
+ * One compact model/provider selector that lives inside the composer.
+ *
+ * A single trigger opens a scrollable provider list. Choosing a provider
+ * slides into a sub-list of that provider's models, also scrollable. If the
+ * provider has no key yet, a small inline form collects it without leaving
+ * the panel. Nothing here is a full-screen sheet.
  */
-export default function ModelProviderPicker({
-  mode,
-  className,
-}: {
-  mode?: string;
-  className?: string;
-}) {
+export default function ModelProviderPicker({ mode }: { mode?: string }) {
   const [catalog, setCatalog] = useState<ProviderCatalogEntry[]>([]);
   const [models, setModels] = useState<AIModel[]>([]);
   const [connected, setConnected] = useState<{ provider: string; has_key: boolean }[]>([]);
   const [provider, setProvider] = useState<string>("");
   const [model, setModel] = useState<string>("");
-  const [openDrawer, setOpenDrawer] = useState<"provider" | "model" | null>(null);
+  const [view, setView] = useState<"providers" | "models" | "key">("providers");
+  const [active, setActive] = useState<ProviderCatalogEntry | null>(null);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setBusy(true);
     try {
       const [cat, ms, provs] = await Promise.all([
         modelsApi.providerCatalog().catch(() => ({ providers: [] as ProviderCatalogEntry[] })),
@@ -40,14 +44,17 @@ export default function ModelProviderPicker({
       setCatalog(cat.providers || []);
       setModels(ms || []);
       setConnected((provs || []).map((p: any) => ({ provider: p.provider, has_key: p.has_key })));
+      setLoadErr(null);
+    } catch (e: any) {
+      setLoadErr(e?.message || "Could not load providers");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // Restore the account's saved default.
+  // Restore the account's saved choice.
   useEffect(() => {
     (async () => {
       try {
@@ -59,30 +66,14 @@ export default function ModelProviderPicker({
     })();
   }, []);
 
-  const providerModels = useMemo(
-    () => models.filter((m) => !provider || m.provider === provider),
-    [models, provider]
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return providerModels;
-    return providerModels.filter((m) =>
-      `${m.provider} ${m.model_id} ${m.display_name || ""}`.toLowerCase().includes(q)
-    );
-  }, [providerModels, query]);
-
   const hasKey = useCallback(
     (id: string) => connected.some((c) => c.provider === id && c.has_key),
     [connected]
   );
 
   const persist = useCallback(async (nextProvider: string, nextModel: string) => {
-    setSaving(true);
     try {
       const { api } = await import("@/lib/api/client");
-      // Model choice is stored on the provider config, which is what the
-      // router reads when dispatching a call.
       if (nextProvider) {
         await api.post("/ai/providers", {
           provider: nextProvider,
@@ -96,203 +87,304 @@ export default function ModelProviderPicker({
       });
       await load();
     } catch {
-      /* selection stays local if the save fails */
-    } finally {
-      setSaving(false);
+      /* keep the local selection even if the save fails */
     }
   }, [load]);
 
-  const providerLabel =
-    catalog.find((c) => c.provider === provider)?.label ||
-    provider ||
-    "Auto";
+  const saveKey = async () => {
+    if (!active || !keyDraft.trim()) return;
+    setBusy(true);
+    try {
+      const { api } = await import("@/lib/api/client");
+      const test = await api.post<any>("/ai/providers/test", {
+        provider: active.provider, api_key: keyDraft.trim(),
+      });
+      if (!test?.ok) {
+        // Surface the provider's own error rather than pretending it worked.
+        setLoadErr(test?.detail || "The provider rejected that key.");
+        return;
+      }
+      await api.post("/ai/providers", {
+        provider: active.provider, api_key: keyDraft.trim(),
+        config: model ? { model } : undefined, is_default: true,
+      });
+      setKeyDraft("");
+      setLoadErr(null);
+      await load();
+      setView("models");
+    } catch (e: any) {
+      setLoadErr(e?.message || "Could not save the key");
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  const providerModels = useMemo(() => {
+    if (!active) return [];
+    const q = query.trim().toLowerCase();
+    const list = models.filter((m) => m.provider === active.provider);
+    if (!q) return list;
+    return list.filter((m) =>
+      `${m.model_id} ${m.display_name || ""}`.toLowerCase().includes(q)
+    );
+  }, [models, active, query]);
+
+  const providerLabel =
+    catalog.find((c) => c.provider === provider)?.label || provider || "Auto";
   const modelLabel = model || "Auto";
 
-  const chip = (
-    label: string,
-    icon: React.ReactNode,
-    onClick: () => void,
-    active: boolean,
-    title: string,
-  ) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cn(
-        "inline-flex max-w-[190px] items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
-        "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
-        active && "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-      )}
-    >
-      {icon}
-      <span className="truncate">{label}</span>
-      <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-    </button>
-  );
-
   return (
-    <>
-      <div className={cn("flex items-center justify-center gap-1", className)}>
-        {chip(
-          providerLabel,
-          <Server className="h-3 w-3 shrink-0" />,
-          () => { setQuery(""); setOpenDrawer("provider"); },
-          !!provider,
-          "Choose the AI provider (OpenAI, Anthropic, Google, OpenRouter, Groq, local Ollama…)"
-        )}
-        <span className="text-zinc-300 dark:text-zinc-600">|</span>
-        {chip(
-          modelLabel,
-          <Cpu className="h-3 w-3 shrink-0" />,
-          () => { setQuery(""); setOpenDrawer("model"); },
-          !!model,
-          "Choose the exact model used for this conversation"
-        )}
-        {saving && <Loader2 className="ml-1 h-3 w-3 animate-spin text-zinc-400" />}
-      </div>
+    <DropdownMenu
+      onOpenChange={(open: boolean) => {
+        if (open) {
+          setView("providers");
+          setActive(null);
+          setQuery("");
+          setLoadErr(null);
+        }
+      }}
+    >
+      <DropdownMenuTrigger
+        type="button"
+        aria-label="Choose AI model and provider"
+        title="Choose model and provider"
+        className="inline-flex h-8 max-w-[220px] items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+      >
+        <Cpu className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{modelLabel}</span>
+        <span className="text-zinc-300 dark:text-zinc-600">/</span>
+        <Server className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{providerLabel}</span>
+        <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+      </DropdownMenuTrigger>
 
-      {/* Provider drawer */}
-      <Sheet open={openDrawer === "provider"} onOpenChange={(o) => setOpenDrawer(o ? "provider" : null)}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-auto">
-          <SheetHeader>
-            <SheetTitle>Provider</SheetTitle>
-            <SheetDescription>
-              Where Mark-Imti sends the request. Connected providers can be used immediately.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-3 space-y-1.5 px-1">
-            <button
-              onClick={() => { setProvider(""); persist("", model); setOpenDrawer(null); }}
-              className={cn(
-                "flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm",
-                !provider && "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-              )}
-            >
-              <span>
-                <span className="font-medium">Auto (smart routing)</span>
-                <span className="block text-xs text-zinc-500">Let Mark-Imti pick per task type</span>
+      <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-hidden p-0">
+        {/* ---------- provider list ---------- */}
+        {view === "providers" && (
+          <div className="max-h-80 overflow-auto p-1">
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                Provider
               </span>
-              {!provider && <Check className="h-4 w-4" />}
-            </button>
-
-            {catalog.map((c) => {
-              const connectedNow = hasKey(c.provider);
-              return (
+              {busy ? <Loader2 className="h-3 w-3 animate-spin text-zinc-400" /> : (
                 <button
-                  key={c.provider}
-                  onClick={() => { setProvider(c.provider); persist(c.provider, model); setOpenDrawer(null); }}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left text-sm",
-                    provider === c.provider && "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                  )}
+                  onClick={load}
+                  className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                  title="Reload providers"
                 >
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span className="font-medium">{c.label}</span>
-                      {c.free_tier && (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                  refresh
+                </button>
+              )}
+            </div>
+
+            <DropdownMenuItem
+              onSelect={(e) => { e.preventDefault(); setProvider(""); setModel(""); persist("", ""); }}
+              className="gap-2 py-1.5"
+            >
+              <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm">Auto</div>
+                  <div className="truncate text-[11px] text-zinc-500">Smart routing per task</div>
+                </div>
+                {!provider && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {catalog.map((c) => (
+              <DropdownMenuItem
+                key={c.provider}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setActive(c);
+                  setQuery("");
+                  setLoadErr(null);
+                  setView(hasKey(c.provider) ? "models" : "key");
+                }}
+                className="gap-2 py-1.5"
+              >
+                {hasKey(c.provider)
+                  ? <Check className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                  : <KeyRound className="h-3.5 w-3.5 shrink-0 text-zinc-400" />}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm">{c.label}</span>
+                    {c.free_tier && (
+                      <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                        FREE
+                      </span>
+                    )}
+                  </div>
+                  <div className="truncate text-[11px] text-zinc-500">
+                    {hasKey(c.provider) ? "Key saved" : "Key required"}
+                  </div>
+                </div>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              </DropdownMenuItem>
+            ))}
+
+            {loadErr && !busy && (
+              <p className="px-2 py-1.5 text-[11px] text-red-600">{loadErr}</p>
+            )}
+          </div>
+        )}
+
+        {/* ---------- model sub-list ---------- */}
+        {view === "models" && active && (
+          <div className="max-h-80 overflow-auto p-1">
+            <div className="sticky top-0 z-10 bg-white px-1 pb-1 pt-0.5 dark:bg-zinc-950">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setView("providers")}
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  aria-label="Back to providers"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[11px] font-semibold">{active.label}</div>
+                  <div className="truncate text-[10px] text-zinc-500">
+                    {providerModels.length} model{providerModels.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <button
+                  onClick={load}
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  aria-label="Refresh models"
+                >
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                </button>
+              </div>
+              <div className="relative mt-1.5">
+                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search models"
+                  className="w-full rounded-md border border-zinc-200 bg-transparent py-1 pl-7 pr-2 text-xs dark:border-zinc-700"
+                />
+              </div>
+            </div>
+
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setModel("");
+                setProvider(active.provider);
+                persist(active.provider, "");
+              }}
+              className="gap-2 py-1.5"
+            >
+              <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+              <span className="flex-1 text-sm">Auto (provider default)</span>
+              {model === "" && <Check className="h-3.5 w-3.5 shrink-0" />}
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {providerModels.map((m) => {
+              const isFree = !!(m.config as any)?.free;
+              return (
+                <DropdownMenuItem
+                  key={m.model_id}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setModel(m.model_id);
+                    setProvider(m.provider);
+                    persist(m.provider, m.model_id);
+                  }}
+                  className="gap-2 py-1.5"
+                >
+                  <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-[13px]">{m.display_name || m.model_id}</span>
+                      {isFree && (
+                        <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
                           FREE
                         </span>
                       )}
-                      {connectedNow && (
-                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900 dark:text-green-300">
-                          KEY SAVED
-                        </span>
-                      )}
-                    </span>
-                    <span className="block truncate text-xs text-zinc-500">{c.note}</span>
-                  </span>
-                  {provider === c.provider && <Check className="h-4 w-4 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Model drawer */}
-      <Sheet open={openDrawer === "model"} onOpenChange={(o) => setOpenDrawer(o ? "model" : null)}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-auto">
-          <SheetHeader>
-            <SheetTitle>Model</SheetTitle>
-            <SheetDescription>
-              {provider
-                ? `Models available from ${providerLabel}.`
-                : "All discovered models. Pick a provider first to narrow the list."}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-3 flex items-center gap-2 px-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search models…"
-                className="w-full rounded-lg border bg-transparent py-2 pl-8 pr-3 text-sm"
-              />
-            </div>
-            <button
-              onClick={async () => { await load(); }}
-              className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs"
-              title="Re-query providers for their latest models"
-            >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-              Refresh
-            </button>
-          </div>
-          <p className="mt-2 px-1 text-xs text-zinc-500">
-            {models.length} models discovered. {providerModels.length} from this provider.
-          </p>
-          <div className="mt-2 space-y-1 px-1 pb-4">
-            <button
-              onClick={() => { setModel(""); persist(provider, ""); setOpenDrawer(null); }}
-              className={cn(
-                "flex w-full items-center justify-between rounded-lg border p-2.5 text-left text-sm",
-                !model && "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-              )}
-            >
-              <span className="font-medium">Auto (provider default)</span>
-              {!model && <Check className="h-4 w-4" />}
-            </button>
-            {filtered.map((m) => {
-              const isFree = !!(m.config as any)?.free;
-              return (
-                <button
-                  key={`${m.provider}-${m.model_id}`}
-                  onClick={() => { setModel(m.model_id); persist(m.provider, m.model_id); setProvider(m.provider); setOpenDrawer(null); }}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-lg border p-2.5 text-left",
-                    model === m.model_id && "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{m.display_name || m.model_id}</span>
-                      {isFree && (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">FREE</span>
-                      )}
-                    </span>
-                    <span className="block truncate text-[11px] text-zinc-500">
-                      {m.provider} · {m.model_id}
+                    </div>
+                    <div className="truncate text-[10px] text-zinc-500">
+                      {m.model_id}
                       {m.context_window ? ` · ${Math.round(m.context_window / 1000)}k ctx` : ""}
-                    </span>
-                  </span>
-                  {model === m.model_id && <Check className="h-4 w-4 shrink-0" />}
-                </button>
+                    </div>
+                  </div>
+                  {model === m.model_id && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </DropdownMenuItem>
               );
             })}
-            {filtered.length === 0 && (
-              <p className="p-4 text-center text-sm text-zinc-500">
-                {models.length === 0
-                  ? "No models yet. Add a provider key in AI Studio, then press Refresh."
-                  : "No model matches that search."}
+
+            {providerModels.length === 0 && (
+              <p className="px-2 py-3 text-center text-[11px] text-zinc-500">
+                No models for this provider yet. Press refresh.
               </p>
             )}
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={(e) => { e.preventDefault(); setKeyDraft(""); setView("key"); }}
+              className="gap-2 py-1.5"
+            >
+              <KeyRound className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[12px]">Replace API key</span>
+            </DropdownMenuItem>
           </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        )}
+
+        {/* ---------- inline key setup ---------- */}
+        {view === "key" && active && (
+          <div className="max-h-80 overflow-auto p-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setView("providers")}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Back to providers"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-semibold">Connect {active.label}</div>
+                <div className="truncate text-[10px] text-zinc-500">{active.note}</div>
+              </div>
+            </div>
+
+            <input
+              type="password"
+              value={keyDraft}
+              onChange={(e) => setKeyDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveKey(); }}
+              placeholder="API key"
+              autoFocus
+              className="mt-2 w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1.5 text-xs dark:border-zinc-700"
+            />
+            {loadErr && <p className="mt-1 text-[10px] text-red-600">{loadErr}</p>}
+
+            <div className="mt-2 flex items-center gap-1.5">
+              <button
+                onClick={saveKey}
+                disabled={busy || !keyDraft.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-zinc-900 px-2 py-1.5 text-[11px] font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+              >
+                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                Save &amp; verify
+              </button>
+              {active.signup_url && (
+                <a
+                  href={active.signup_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border px-2 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                >
+                  Get key
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

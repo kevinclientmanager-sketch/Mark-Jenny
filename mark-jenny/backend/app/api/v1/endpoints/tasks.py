@@ -141,6 +141,8 @@ class TaskExecuteRequest(BaseModel):
     model_preference: Optional[str] = None
     autonomy_level: int = 1
     skip_confirmations: bool = False
+    think: bool = False
+    model: Optional[str] = None
 
 
 @router.get("", response_model=TaskListResponse)
@@ -340,30 +342,45 @@ async def execute_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Execute the task for real.
+
+    Previously this only set status=PLANNING and returned "queued" while no
+    worker ever picked it up. It now runs the plan step by step and returns
+    the actual outcome.
+    """
     task = db.query(Task).filter(
         Task.id == task_id,
         Task.owner_id == current_user.id
     ).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if task.status in [TaskStatus.RUNNING, TaskStatus.PLANNING]:
         raise HTTPException(status_code=400, detail="Task is already running")
-    
-    task.status = TaskStatus.PLANNING
-    task.original_request = execute_data.prompt
+
+    task.original_request = execute_data.prompt or task.original_request
     if execute_data.project_id:
         task.project_id = execute_data.project_id
     if execute_data.autonomy_level:
         task.autonomy_level = execute_data.autonomy_level
     db.commit()
-    
+
     await log_audit(db, user_id=current_user.id, action="TASK_START",
                    resource_type="task", resource_id=str(task.id), success=True)
-    
     await notify_task_update(db, task, "started")
-    
-    return {"message": "Task queued for execution", "task_id": task.id}
+
+    from app.services.task_runner import run_task
+    outcome = await run_task(
+        db, task, current_user,
+        prompt=execute_data.prompt,
+        think=bool(getattr(execute_data, "think", False)),
+        model=getattr(execute_data, "model", None),
+    )
+
+    await log_audit(db, user_id=current_user.id, action="TASK_COMPLETE",
+                   resource_type="task", resource_id=str(task.id),
+                   success=outcome["status"] == "COMPLETED")
+    return outcome
 
 
 @router.post("/{task_id}/pause")

@@ -111,10 +111,20 @@ class ComputerEngine:
             return {"success": False, "error": perm["reason"]}
         try:
             procs = []
-            for proc in psutil.process_iter(['pid','name','cpu_percent','memory_percent'])[:limit]:
+            # psutil.process_iter() returns a generator - it cannot be sliced.
+            for proc in psutil.process_iter(['pid','name','cpu_percent','memory_percent']):
+                if len(procs) >= limit:
+                    break
                 try:
-                    procs.append(proc.info)
-                except: pass
+                    info = dict(proc.info)
+                    # Keep the payload JSON-safe and stable across platforms.
+                    info["cpu_percent"] = round(float(info.get("cpu_percent") or 0.0), 2)
+                    info["memory_percent"] = round(float(info.get("memory_percent") or 0.0), 2)
+                    procs.append(info)
+                except Exception:
+                    # Process may have exited between iteration and inspection.
+                    continue
+            procs.sort(key=lambda p: p.get("memory_percent") or 0.0, reverse=True)
             return {"success": True, "processes": procs, "count": len(procs), "platform": platform.system()}
         except Exception as e:
             return {"success": False, "error": str(e)}

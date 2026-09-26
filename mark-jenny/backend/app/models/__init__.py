@@ -14,6 +14,7 @@ from app.models.audit import AuditLog, AuditAction
 from app.models.builder_access import BuilderAccess
 from app.models.generated import GeneratedWebsite, GeneratedApp, GeneratedType, GeneratedStatus, BrowserSession
 from app.models.user_settings import UserSettings
+from app.models.system_kv import SystemKV
 
 __all__ = [
     "User", "UserRole", "Session",
@@ -32,4 +33,5 @@ __all__ = [
     "BuilderAccess",
     "GeneratedWebsite", "GeneratedApp", "GeneratedType", "GeneratedStatus", "BrowserSession",
     "UserSettings",
+    "SystemKV",
 ]

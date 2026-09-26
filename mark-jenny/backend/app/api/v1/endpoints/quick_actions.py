@@ -99,35 +99,19 @@ async def execute_quick_action(
     if route and action_id.value in ["connect-computer","scheduled-tasks"]:
         return {"message": "Navigate", "route": route.replace("{project}", str(data.project_id or "")), "action_id": action_id.value}
 
-    # Generative / input actions create a Task via the autonomous pipeline (Self-Build hook lives here)
-    # Missing capability detection will happen in Phase 11/14 worker; for now record intent
+    # Generative / input actions create a Task and then actually run it.
     meta = ACTION_DEFS[action_id.value]
     title = f"[{meta['label']}] {data.prompt[:60]}"
-    plan = {
-        "quick_action": action_id.value,
-        "intent": meta["label"],
-        "goal": data.prompt,
-        "category": meta["category"],
-        "missing_capabilities": [],  # Gap-Detect will fill
-        "subtasks": [
-            {"title": f"Prepare {meta['label']}", "status":"PENDING"},
-            {"title": "Research & gather requirements", "status":"PENDING"},
-            {"title": "Execute generation", "status":"PENDING"},
-            {"title": "Validate & save to project", "status":"PENDING"},
-        ]
-    }
     task = Task(
         title=title,
         description=data.prompt,
         original_request=data.prompt,
-        status=TaskStatus.PLANNING,
+        status=TaskStatus.PENDING,
         priority=TaskPriority.NORMAL,
         autonomy_level=2,
         owner_id=current_user.id,
         project_id=data.project_id,
-        plan=plan,
         current_step=0,
-        total_steps=len(plan["subtasks"]),
         agent_type=action_id.value
     )
     db.add(task)
@@ -135,4 +119,30 @@ async def execute_quick_action(
     db.refresh(task)
     await notify_task_update(db, task, "quick_action_created")
     await log_audit(db, user_id=current_user.id, action="TASK_CREATE", resource_type="task", resource_id=str(task.id), success=True)
-    return {"message":"Task created via Quick Action", "task_id": task.id, "action_id": action_id.value, "status": task.status.value, "title": task.title}
+
+    # Run it for real instead of leaving a task parked in PLANNING forever.
+    try:
+        from app.services.task_runner import run_task
+        outcome = await run_task(db, task, current_user, prompt=data.prompt)
+    except Exception as exc:
+        return {
+            "message": "Quick Action started but the run failed",
+            "task_id": task.id,
+            "action_id": action_id.value,
+            "status": TaskStatus.FAILED.value,
+            "title": task.title,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    return {
+        "message": f"{meta['label']} finished",
+        "task_id": task.id,
+        "action_id": action_id.value,
+        "status": outcome.get("status"),
+        "title": task.title,
+        "result": outcome.get("result"),
+        "files_created": outcome.get("files_created", []),
+        "ai_steps": outcome.get("ai_steps", 0),
+        "steps": outcome.get("steps", 0),
+        "total_steps": outcome.get("total_steps", 0),
+    }

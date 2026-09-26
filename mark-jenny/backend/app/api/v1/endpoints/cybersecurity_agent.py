@@ -41,6 +41,58 @@ class SiteSafetyRequest(BaseModel):
     url: str
 
 
+class ScanRequest(BaseModel):
+    """Generic scan used by the Security page's 'Run Scan' button.
+
+    Dispatches to the right agent based on what was supplied, so the page has
+    one entry point instead of guessing which route exists.
+    """
+    target: str = ""
+    url: str = ""
+    code: str = ""
+    filename: str = ""
+    mode: str = "auto"   # auto | code | codebase | site | posture
+
+
+@router.post("/scan")
+async def scan(req: ScanRequest, current_user: User = Depends(get_current_user)):
+    """Single dispatching security scan endpoint (the Security page used to 404 here)."""
+    mode = (req.mode or "auto").lower()
+    code = req.code or ""
+    url = req.url or req.target or ""
+    target = req.target or url
+
+    if mode == "auto":
+        if code:
+            mode = "code"
+        elif url.startswith("http://") or url.startswith("https://"):
+            mode = "posture"
+        else:
+            mode = "codebase"
+
+    try:
+        if mode == "code":
+            if not code:
+                raise HTTPException(status_code=400, detail="Provide `code` to scan, or a `target` path to scan a codebase.")
+            return await cybersecurity_agent.scan_code(code, req.filename or "snippet", "auto")
+        if mode == "codebase":
+            if not target:
+                raise HTTPException(status_code=400, detail="Provide a directory or file path in `target`.")
+            return await cybersecurity_agent.scan_codebase(target)
+        if mode == "site":
+            if not url:
+                raise HTTPException(status_code=400, detail="Provide a `url` to assess.")
+            return await cybersecurity_agent.site_safety(url)
+        # posture
+        if not url:
+            raise HTTPException(status_code=400, detail="Provide a `url` to audit.")
+        return await cybersecurity_agent.security_posture(url)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # 1. Scan code for vulnerabilities
 @router.post("/scan-code")
 async def scan_code(req: CodeScanRequest, current_user: User = Depends(get_current_user)):

@@ -25,12 +25,42 @@ def require_creator_or_admin(current_user: User):
         raise HTTPException(status_code=403, detail="Creator/Admin only")
     return current_user
 
-# In-memory stores for demo (in prod would be DB tables)
-FEATURE_FLAGS: Dict[str, bool] = {"enable_skills": True, "enable_browser": True, "enable_code_exec": True}
-BLACKLIST: List[str] = []
-SKILL_ACCESS: Dict[str, List[str]] = {}  # skill_id -> roles
-SUBSCRIPTIONS: Dict[int, Dict] = {}
-CREDITS: Dict[int, int] = {}
+# Admin state is persisted in the system_kv table. These used to be module-level
+# dicts ("in-memory stores for demo") that silently reset on every restart.
+FEATURE_FLAGS_DEFAULT: Dict[str, bool] = {
+    "enable_skills": True, "enable_browser": True, "enable_code_exec": True,
+}
+BLACKLIST_DEFAULT: List[str] = []
+SKILL_ACCESS_DEFAULT: Dict[str, List[str]] = {}
+
+from app.models.system_kv import SystemKV
+
+_STORE_KEYS = {
+    "FEATURE_FLAGS": ("feature_flags", dict),
+    "BLACKLIST": ("blacklist", list),
+    "SKILL_ACCESS": ("skill_access", dict),
+    "SUBSCRIPTIONS": ("subscriptions", dict),
+    "CREDITS": ("credits", dict),
+}
+
+
+def load_store(db: Session, name: str) -> Any:
+    key, empty = _STORE_KEYS[name]
+    row = db.query(SystemKV).filter(SystemKV.key == key).first()
+    if not row or row.value is None:
+        return empty() if empty is list else (empty() if empty is dict else empty)
+    return row.value
+
+
+def save_store(db: Session, name: str, value: Any) -> None:
+    key, _ = _STORE_KEYS[name]
+    row = db.query(SystemKV).filter(SystemKV.key == key).first()
+    if not row:
+        row = SystemKV(key=key, value=value)
+        db.add(row)
+    else:
+        row.value = value
+    db.commit()
 
 class RoleUpdate(BaseModel):
     role: UserRole
@@ -112,24 +142,29 @@ async def admin_blacklist(user_id: int, reason: str = "violation", current_user:
     u = db.query(User).filter(User.id == user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
     u.is_active = False
-    BLACKLIST.append(u.email)
+    bl = load_store(db, "BLACKLIST")
+    if u.email not in bl:
+        bl.append(u.email)
+    save_store(db, "BLACKLIST", bl)
     db.commit()
     await log_audit(db, user_id=current_user.id, action="USER_BAN", resource_type="user", resource_id=str(user_id), success=True)
-    return {"message": f"User {u.email} blacklisted", "blacklist": BLACKLIST}
+    return {"message": f"User {u.email} blacklisted", "blacklist": load_store(db, "BLACKLIST")}
 
 @router.delete("/users/{user_id}/blacklist")
 async def admin_unblacklist(email: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    if email in BLACKLIST:
-        BLACKLIST.remove(email)
+    bl = load_store(db, "BLACKLIST")
+    if email in bl:
+        bl.remove(email)
+        save_store(db, "BLACKLIST", bl)
         u = db.query(User).filter(User.email == email).first()
         if u: u.is_active = True; db.commit()
-    return {"blacklist": BLACKLIST}
+    return {"blacklist": load_store(db, "BLACKLIST")}
 
 @router.get("/blacklist")
-async def get_blacklist(current_user: User = Depends(get_current_user)):
+async def get_blacklist(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    return {"blacklist": BLACKLIST}
+    return {"blacklist": load_store(db, "BLACKLIST")}
 
 # Creator/Admin management
 @router.get("/creators")
@@ -148,54 +183,67 @@ async def list_admins(current_user: User = Depends(get_current_user), db: Sessio
 @router.get("/subscriptions/{user_id}")
 async def get_subscription(user_id: int, current_user: User = Depends(get_current_user)):
     require_master_admin(current_user)
-    return SUBSCRIPTIONS.get(user_id, {"plan":"free", "credits": CREDITS.get(user_id, 0)})
+    subs = load_store(db, "SUBSCRIPTIONS")
+    creds = load_store(db, "CREDITS")
+    return subs.get(str(user_id), {"plan": "free", "credits": creds.get(str(user_id), 0)})
 
 @router.patch("/subscriptions/{user_id}")
 async def set_subscription(user_id: int, data: SubscriptionUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
     u = db.query(User).filter(User.id==user_id).first()
     if not u: raise HTTPException(status_code=404, detail="User not found")
-    SUBSCRIPTIONS[user_id] = {"plan": data.plan, "expires_at": data.expires_at.isoformat() if data.expires_at else None}
+    subs = load_store(db, "SUBSCRIPTIONS")
+    subs[str(user_id)] = {"plan": data.plan, "expires_at": data.expires_at.isoformat() if data.expires_at else None}
+    save_store(db, "SUBSCRIPTIONS", subs)
     if data.credits is not None:
-        CREDITS[user_id] = data.credits
+        creds = load_store(db, "CREDITS")
+        creds[str(user_id)] = data.credits
+        save_store(db, "CREDITS", creds)
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="subscription", resource_id=str(user_id), success=True)
-    return {"subscription": SUBSCRIPTIONS[user_id], "credits": CREDITS.get(user_id, 0)}
+    creds = load_store(db, "CREDITS")
+    return {"subscription": load_store(db, "SUBSCRIPTIONS").get(str(user_id), {}), "credits": creds.get(str(user_id), 0)}
 
 @router.get("/credits/{user_id}")
-async def get_credits(user_id: int, current_user: User = Depends(get_current_user)):
+async def get_credits(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    return {"credits": CREDITS.get(user_id, 0)}
+    return {"credits": load_store(db, "CREDITS").get(str(user_id), 0)}
 
 @router.post("/credits/{user_id}/add")
 async def add_credits(user_id: int, amount: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    CREDITS[user_id] = CREDITS.get(user_id, 0) + amount
+    creds = load_store(db, "CREDITS")
+    creds[str(user_id)] = creds.get(str(user_id), 0) + amount
+    save_store(db, "CREDITS", creds)
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="credits", resource_id=str(user_id), success=True)
-    return {"credits": CREDITS[user_id]}
+    return {"credits": load_store(db, "CREDITS").get(str(user_id), 0)}
 
 # Feature flags
 @router.get("/feature-flags")
-async def get_flags(current_user: User = Depends(get_current_user)):
+async def get_flags(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    return FEATURE_FLAGS
+    return load_store(db, "FEATURE_FLAGS")
 
 @router.patch("/feature-flags")
 async def set_flag(data: FeatureFlagUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    FEATURE_FLAGS[data.flag] = data.enabled
+    flags = load_store(db, "FEATURE_FLAGS")
+    flags[data.flag] = data.enabled
+    save_store(db, "FEATURE_FLAGS", flags)
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="feature_flag", resource_id=data.flag, success=True)
-    return FEATURE_FLAGS
+    return flags
 
 # Skill access
 @router.get("/skill-access")
-async def get_skill_access(current_user: User = Depends(get_current_user)):
+async def get_skill_access(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    return SKILL_ACCESS
+    return load_store(db, "SKILL_ACCESS")
 
 @router.patch("/skill-access/{skill_id}")
 async def set_skill_access(skill_id: str, roles: List[str], current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
-    SKILL_ACCESS[skill_id] = roles
+    sa = load_store(db, "SKILL_ACCESS")
+    sa[skill_id] = roles
+    save_store(db, "SKILL_ACCESS", sa)
     return {"skill_id": skill_id, "roles": roles}
 
 # System config & Audit
@@ -206,12 +254,12 @@ async def get_audit_logs(limit: int = 50, current_user: User = Depends(get_curre
     return [{"id":l.id, "action":l.action.value, "resource_type":l.resource_type, "resource_id":l.resource_id, "user_id":l.user_id, "success":l.success, "created_at":l.created_at} for l in logs]
 
 @router.get("/system/config")
-async def get_system_config(current_user: User = Depends(get_current_user)):
+async def get_system_config(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_master_admin(current_user)
     return {
-        "feature_flags": FEATURE_FLAGS,
-        "blacklist_count": len(BLACKLIST),
-        "skill_access_count": len(SKILL_ACCESS),
+        "feature_flags": load_store(db, "FEATURE_FLAGS"),
+        "blacklist_count": len(load_store(db, "BLACKLIST")),
+        "skill_access_count": len(load_store(db, "SKILL_ACCESS")),
         "note": "All checks are server-side - UI hiding is not security"
     }
 
@@ -330,4 +378,136 @@ def can_use_builder(user, db: Session) -> bool:
         return True
     g = db.query(BuilderAccess).filter(BuilderAccess.user_id == user.id).first()
     return bool(g and g.allowed)
+
+
+# --- Compatibility endpoints the Admin page calls -----------------------
+# These were previously missing entirely, which made the whole Admin page
+# fail to load (it fetches them in one Promise.all).
+
+class UserPatch(BaseModel):
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+@router.patch("/users/{user_id}")
+async def admin_patch_user(
+    user_id: int,
+    data: UserPatch,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_master_admin(current_user)
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    if data.full_name is not None:
+        u.full_name = data.full_name
+    if data.is_active is not None:
+        u.is_active = data.is_active
+    if data.role is not None:
+        u.role = data.role
+    db.commit()
+    db.refresh(u)
+    await log_audit(db, user_id=current_user.id, action="USER_UPDATE",
+                    resource_type="user", resource_id=str(user_id), success=True)
+    return {"id": u.id, "email": u.email, "full_name": u.full_name,
+            "role": u.role.value, "is_active": u.is_active}
+
+
+class BlacklistRequest(BaseModel):
+    email: str
+    reason: str = "violation"
+
+
+@router.post("/blacklist")
+async def admin_blacklist_by_email(
+    data: BlacklistRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_master_admin(current_user)
+    u = db.query(User).filter(User.email == data.email).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    bl = load_store(db, "BLACKLIST")
+    if data.email not in bl:
+        bl.append(data.email)
+    save_store(db, "BLACKLIST", bl)
+    u.is_active = False
+    db.commit()
+    await log_audit(db, user_id=current_user.id, action="USER_UPDATE",
+                    resource_type="blacklist", resource_id=data.email, success=True)
+    return {"message": f"User {data.email} blacklisted", "blacklist": bl}
+
+
+@router.delete("/blacklist")
+async def admin_remove_blacklist(
+    email: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_master_admin(current_user)
+    bl = load_store(db, "BLACKLIST")
+    if email in bl:
+        bl.remove(email)
+        save_store(db, "BLACKLIST", bl)
+    u = db.query(User).filter(User.email == email).first()
+    if u:
+        u.is_active = True
+        db.commit()
+    return {"blacklist": load_store(db, "BLACKLIST")}
+
+
+@router.get("/features")
+async def admin_features(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Alias of /feature-flags used by the Admin page."""
+    require_master_admin(current_user)
+    return load_store(db, "FEATURE_FLAGS")
+
+
+@router.get("/system-stats")
+async def admin_system_stats(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Live counts computed from the database - nothing hardcoded."""
+    require_master_admin(current_user)
+    from app.models.task import Task
+    from app.models.file import File
+    from app.models.chat import Chat
+    from app.models.project import Project
+    from app.models.agent import ModelProviderConfig
+    from app.services.model_router import ensure_default_models
+    import platform
+    import os as _os
+
+    try:
+        ensure_default_models(db)
+    except Exception:
+        pass
+
+    def count(model, owner_scoped: bool = True) -> int:
+        try:
+            q = db.query(model)
+            if owner_scoped and hasattr(model, "owner_id"):
+                q = q.filter(model.owner_id == current_user.id)
+            return q.count()
+        except Exception:
+            return 0
+
+    return {
+        "users_total": db.query(User).count(),
+        "users_active": db.query(User).filter(User.is_active.is_(True)).count(),
+        "projects": count(Project),
+        "tasks": count(Task),
+        "files": count(File),
+        "chats": count(Chat),
+        "providers_configured": db.query(ModelProviderConfig)
+            .filter(ModelProviderConfig.api_key_encrypted.isnot(None)).count(),
+        "models_catalogued": db.query(__import__("app.models.agent", fromlist=["Model"]).Model).count(),
+        "audit_log_entries": db.query(AuditLog).count(),
+        "platform": platform.system(),
+        "python": platform.python_version(),
+        "database_url_scheme": (db.url.get_backend_name() if hasattr(db, "url") else "unknown"),
+        "pid": _os.getpid(),
+        "server_time": datetime.utcnow().isoformat(),
+    }
 

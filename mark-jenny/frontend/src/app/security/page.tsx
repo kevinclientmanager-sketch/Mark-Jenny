@@ -18,12 +18,19 @@ interface SecurityScan {
   status: string;
   issues: { severity: string; message: string; file: string }[];
   scanned_at: string;
+  error?: string;
+  ai_powered?: boolean;
 }
 
 interface RateLimitInfo {
-  limit: number;
+  limit?: number;
+  max_requests?: number;
   remaining: number;
-  reset_at: string;
+  used?: number;
+  window_seconds?: number;
+  general?: string;
+  auth?: string;
+  reset_at?: string;
 }
 
 export default function SecurityPage() {
@@ -51,12 +58,31 @@ export default function SecurityPage() {
   useEffect(() => { load(); }, []);
 
   const handleScan = async () => {
+    // A scan needs a real target - no fabricated default target.
+    const target = window.prompt(
+      "Scan target:\n- a URL (https://...) for a web security audit\n- a file or folder path for a code scan",
+      "https://example.com"
+    );
+    if (target === null) return;
+    const value = target.trim();
+    if (!value) { toast.add({ title: "Enter a URL or path to scan", type: "error" }); return; }
     setScanning(true);
     try {
-      const result = await api.post<SecurityScan>("/cybersecurity-agent/scan", {});
+      const isUrl = /^https?:\/\//i.test(value);
+      const result = await api.post<SecurityScan>("/cybersecurity-agent/scan",
+        isUrl ? { url: value, mode: "posture" } : { target: value, mode: "codebase" });
       setScans(prev => [result, ...prev]);
-      toast.add({ title: "Security scan complete", description: `${result.issues?.length || 0} issues found.`, type: result.issues?.length ? "warning" : "success" });
-    } catch { toast.add({ title: "Scan failed", type: "error" }); }
+      const found = result.issues?.length || 0;
+      toast.add({
+        title: "Security scan complete",
+        description: result.error
+          ? result.error
+          : `${found} issue(s) found${result.ai_powered === false ? " (no AI model, heuristic scan only)" : ""}.`,
+        type: found ? "warning" : "success",
+      });
+    } catch (e: any) {
+      toast.add({ title: "Scan failed", description: e?.message || "Could not run the scan.", type: "error" });
+    }
     finally { setScanning(false); }
   };
 

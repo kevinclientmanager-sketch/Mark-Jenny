@@ -5,3 +5,4 @@
 *.db
 *.db-journal
 credentials/
+mark-jenny/backend/mcp/

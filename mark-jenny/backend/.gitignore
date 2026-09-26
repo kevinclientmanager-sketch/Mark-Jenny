@@ -1,3 +1,4 @@
 
 # credential vault salt - machine specific, never commit
 credentials/
+mcp/

@@ -81,7 +81,11 @@ async def get_user_from_token(token: str, db: Session) -> User:
     return user if user and user.is_active else None
 
 
-@router.websocket("/ws/tasks")
+# This router is mounted with prefix="/ws", so the route is "/tasks" and the
+# public path is /api/v1/ws/tasks. It used to be declared "/ws/tasks", which
+# produced /api/v1/ws/ws/tasks - the browser never matched it and every task
+# WebSocket handshake failed with 403.
+@router.websocket("/tasks")
 async def websocket_tasks(
     websocket: WebSocket,
     token: str = Query(...),

@@ -295,7 +295,11 @@ async def test_provider(data: ProviderTestRequest, current_user: User = Depends(
     if not key and data.provider != ModelProvider.OLLAMA:
         raise HTTPException(status_code=400, detail="No API key supplied or saved for this provider.")
 
-    model = data.model or (cfg.config or {}).get("model") or router_svc.PROVIDER_DEFAULT_MODELS.get(data.provider, "")
+    # cfg is None the first time a user adds a key for a provider. Dereferencing
+    # it here raised AttributeError -> HTTP 500, which meant no key could ever be
+    # saved and chat always fell back to "no model connected".
+    saved_conf = (cfg.config or {}) if cfg is not None else {}
+    model = data.model or saved_conf.get("model") or router_svc.PROVIDER_DEFAULT_MODELS.get(data.provider, "")
     base = (data.base_url or (cfg.base_url if cfg else None) or "").rstrip("/")
     prompt = "Reply with the single word: OK"
     try:

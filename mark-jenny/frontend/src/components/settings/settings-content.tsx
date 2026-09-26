@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { settingsApi } from "@/lib/api/settings";
 import { schedulesApi } from "@/lib/api/schedules";
@@ -77,6 +78,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export function SettingsContent() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [language, setLanguage] = useState("en");
   const [fullName, setFullName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1069,14 +1071,13 @@ export function SettingsContent() {
                             {connected && !st?.is_default && (
                               <Button size="sm" variant="ghost" onClick={() => setDefaultProvider(p.provider)}>Set default</Button>
                             )}
-                          <Button size="sm" variant="outline" onClick={() => {
-                            const key = prompt(`Enter API key for ${p.name}:`);
-                            if (key !== null) {
-                              api.post("/ai/providers", { provider: p.provider, api_key: key })
-                                .then(() => { toast.add({ title: `${p.name} configured`, type: "success" }); refreshModelStatus(); })
-                                .catch(() => toast.add({ title: `Failed to configure ${p.name}`, type: "error" }));
-                            }
-                          }}>Configure</Button>
+                          {/* AI Studio owns key entry: it verifies the key with a
+                              live provider call before saving. This used to call
+                              window.prompt() (blocked by the browser) and saved
+                              unverified keys, so the button did nothing. */}
+                          <Button size="sm" variant="outline" onClick={() => router.push("/ai")}>
+                            {connected ? "Manage key" : "Configure"}
+                          </Button>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1">

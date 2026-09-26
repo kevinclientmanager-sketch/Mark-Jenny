@@ -261,10 +261,12 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
     if not reply or not reply.strip():
         reply = _generate_simple_reply(content, intent, recalled, skill_matches)
         provider_status = "unavailable_fallback"
+    elif getattr(brain, "_no_model_reply", False):
+        # The brain returned an honest failure notice, not an answer. Report it as
+        # the error it is instead of labelling it a successful model response.
+        provider_status = "provider_error" if getattr(brain, "_provider_error", None) else "no_provider"
     else:
-        # The brain returns an honest error notice (not a model answer) when every
-        # provider failed. Labelling that "model_response" hid the real failure.
-        provider_status = "provider_error" if getattr(brain, "_provider_error", None) else "model_response"
+        provider_status = "model_response"
 
     # Build metadata
     meta = {
@@ -276,6 +278,7 @@ async def _run_autonomous_pipeline(db: Session, chat: Chat, user_msg: Message, c
         "memory_recalled": [{"type": r["type"], "content": r["content"][:100], "score": round(r["score"], 2)} for r in recalled[:5]],
         "model_used": brain._call_llm.__module__ if hasattr(brain, '_call_llm') else "ollama",
         "provider_status": provider_status,
+        "provider_error": getattr(brain, "_provider_error", None),
         "retryable": provider_status != "model_response",
         "think_requested": think,
         "requested_model": model,

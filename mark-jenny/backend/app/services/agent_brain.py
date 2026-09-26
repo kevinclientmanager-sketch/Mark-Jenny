@@ -1091,6 +1091,8 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         """Honest notice when no AI model answered — states the real reason, never a fake reply."""
         from app.models.agent import ModelProviderConfig, ModelProvider
         uid = getattr(self, "_user_id", None)
+        # Flag the reply as a failure notice so callers never report it as an answer.
+        self._no_model_reply = True
         saved = []
         if self.db is not None and uid is not None:
             try:

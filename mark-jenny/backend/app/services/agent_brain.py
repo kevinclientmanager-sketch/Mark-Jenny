@@ -1085,7 +1085,7 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
 
     def _fallback_response(self, prompt: str) -> str:
         """Honest notice when no AI model answered — states the real reason, never a fake reply."""
-        from app.models.agent import ModelProviderConfig
+        from app.models.agent import ModelProviderConfig, ModelProvider
         uid = getattr(self, "_user_id", None)
         saved = []
         if self.db is not None and uid is not None:

@@ -66,7 +66,7 @@ export default function AgentsPage() {
           <main className="flex-1 p-6 overflow-auto">
             <div className="mb-6">
               <h1 className="text-2xl font-semibold flex items-center gap-2"><Bot className="h-6 w-6" /> AI Agents</h1>
-              <p className="text-sm text-zinc-500">Multi-agent system with 9 specialist agents, plus the Agent Brain for autonomous goals</p>
+              <p className="text-sm text-zinc-500">The Agent Brain plans and runs your goals, then shows its reasoning, the tools it used, and what it learned.</p>
             </div>
 
             <Card className="mb-6">
@@ -191,20 +191,13 @@ export default function AgentsPage() {
             {loading ? (
               <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
             ) : agents.length === 0 ? (
-              <div className="grid gap-4 md:grid-cols-3">
-                {["Planner", "Executor", "Reviewer", "Researcher", "Coder", "Writer", "Analyst", "Supervisor", "Memory Manager"].map((name) => (
-                  <Card key={name}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <Bot className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{name}</p>
-                        <Badge variant="outline">Ready</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="rounded-lg border border-dashed p-8 text-center">
+                <Bot className="mx-auto h-6 w-6 text-zinc-400" />
+                <p className="mt-2 text-sm font-medium">No agents registered yet</p>
+                <p className="mx-auto mt-1 max-w-md text-xs text-zinc-500">
+                  Agents appear here once they are created. Until then the Agent Brain above is
+                  what actually runs your goals &mdash; give it a goal and press Think or Run.
+                </p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

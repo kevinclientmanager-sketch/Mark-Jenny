@@ -133,23 +133,35 @@ class ExtensionManager:
         return {"success": True, "name": name, "path": str(ext_dir)}
 
     async def install_model(self, model_id: str, model_name: str = "") -> Dict[str, Any]:
-        """Download and install an AI model."""
-        from app.services.airllm_engine import airllm_engine
+        """Pull a model into the local cache through Ollama.
 
-        if not airllm_engine.is_available():
-            return {"success": False, "error": "AirLLM not installed. Run: pip install airllm"}
+        Ollama is the only local runtime this project supports, so local weights
+        are always fetched through its /api/pull endpoint.
+        """
+        import httpx
 
-        result = airllm_engine.load_model(model_id)
-        if result["success"]:
-            self.installed[f"model:{model_id}"] = {
-                "type": "model",
-                "name": model_name or model_id,
-                "installed_at": datetime.utcnow().isoformat(),
-                "model_id": model_id,
-            }
-            self._save_manifest()
+        ollama_base = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post(
+                    f"{str(ollama_base).rstrip('/')}/api/pull",
+                    json={"name": model_id, "stream": False},
+                )
+        except Exception as exc:
+            return {"success": False, "error": f"Could not reach Ollama at {ollama_base}: {exc}"}
 
-        return result
+        if r.status_code != 200:
+            return {"success": False, "error": f"Ollama refused to pull {model_id} (HTTP {r.status_code})"}
+
+        self.installed[f"model:{model_id}"] = {
+            "type": "model",
+            "name": model_name or model_id,
+            "installed_at": datetime.utcnow().isoformat(),
+            "model_id": model_id,
+        }
+        self._save_manifest()
+
+        return {"success": True, "model_id": model_id, "runtime": "ollama"}
 
     async def uninstall(self, ext_id: str) -> Dict[str, Any]:
         """Uninstall an extension."""

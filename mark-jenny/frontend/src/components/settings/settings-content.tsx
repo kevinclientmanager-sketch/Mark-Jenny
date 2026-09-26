@@ -1197,46 +1197,6 @@ export function SettingsContent() {
                   {aiPrefsSaved && <p className="text-[11px] text-green-600 mt-2">Saved to your account.</p>}
                 </div>
 
-                {/* AirLLM - Layer-by-layer 70B inference */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-medium">AirLLM (70B on 4GB GPU)</p>
-                      <p className="text-xs text-zinc-500">Run massive LLMs layer-by-layer on a single 4GB GPU without quantization.</p>
-                    </div>
-                    <Badge variant="outline" className="text-[9px]">Advanced</Badge>
-                  </div>
-                  <SettingRow title="Enable AirLLM" desc="Layer-by-layer inference for 70B+ models on limited VRAM." control={<Toggle checked={catFlag("advanced", "airllm_enabled")} onChange={(v) => setCat("advanced", "airllm_enabled", v)} />} />
-                  <div className="grid grid-cols-1 gap-2 mt-2">
-                    {[
-                      { id: "meta-llama/Meta-Llama-3.1-70B-Instruct", name: "Llama 3.1 70B Instruct", size: "~140 GB on disk", desc: "Meta's full 70B — runs layer-by-layer on 4GB GPU", recommended: true },
-                      { id: "Qwen/Qwen2.5-72B-Instruct", name: "Qwen 2.5 72B Instruct", size: "~144 GB on disk", desc: "Alibaba's top open model — 72B parameters" },
-                      { id: "tiiuae/falcon-180B-Chat", name: "Falcon 180B Chat", size: "~360 GB on disk", desc: "Technology Innovation Institute's massive 180B" },
-                      { id: "mistralai/Mixtral-8x22B-Instruct-v0.1", name: "Mixtral 8x22B Instruct", size: "~130 GB on disk", desc: "Mistral's MoE — 141B params, 39B active" },
-                      { id: "microsoft/Phi-3-medium-4k-instruct", name: "Phi-3 Medium 4K", size: "~32 GB on disk", desc: "Microsoft's 14B — strong reasoning at small size" },
-                    ].map((model) => (
-                      <div key={model.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{model.name}</p>
-                            {model.recommended && <Badge className="text-[9px] bg-blue-600">Recommended</Badge>}
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-0.5">{model.desc}</p>
-                          <p className="text-[10px] text-zinc-400 mt-0.5">{model.size}</p>
-                        </div>
-                        <Button size="sm" variant="outline" className="shrink-0" onClick={async () => {
-                          toast.add({ title: `Loading ${model.name} via AirLLM...`, type: "info", timeout: 60000 });
-                          try {
-                            const res = await api.post("/integrations/airllm/load", { model_id: model.id });
-                            if ((res as any)?.success) toast.add({ title: `${model.name} loaded`, type: "success" });
-                            else toast.add({ title: `Failed: ${(res as any)?.error || "Unknown error"}`, type: "error" });
-                          } catch { toast.add({ title: "AirLLM not available. Install: pip install airllm", type: "error" }); }
-                        }}>Load</Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Scrapling - Adaptive Web Scraping */}
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-3">

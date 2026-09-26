@@ -5,7 +5,6 @@ No fixed chain. No provider preference. The app works with any model:
 - Anthropic (Claude 3.5, Claude 4, Claude Mythos 5)
 - Google (Gemini 2.5, Gemini 3)
 - Local Ollama (any model)
-- AirLLM (any 70B model)
 - Any OpenAI-compatible API (LM Studio, vLLM, text-generation-webui)
 - Any provider the user adds
 
@@ -86,23 +85,7 @@ class ModelCaller:
             except Exception:
                 pass
 
-        # 1. Try AirLLM (local 70B models) only in local/hybrid mode.
-        if runtime_mode in {"local", "hybrid"}:
-            try:
-                from app.services.airllm_engine import airllm_engine
-                if airllm_engine.is_available() and airllm_engine.current_model_id:
-                    result = await airllm_engine.generate(
-                        prompt=prompt,
-                        system_prompt=system,
-                        max_new_tokens=max_tokens,
-                        temperature=temperature,
-                    )
-                    if result.get("success") and result.get("text"):
-                        return result["text"]
-            except Exception:
-                pass
-
-        # 2. Try Ollama (local) when explicitly enabled.
+        # 1. Try Ollama (local) when explicitly enabled.
         if runtime_mode in {"local", "hybrid"}:
             try:
                 available_model = ""
@@ -188,19 +171,6 @@ class ModelCaller:
     @staticmethod
     def get_model_info() -> Dict[str, str]:
         """Get info about which model is currently available."""
-        # Check AirLLM
-        try:
-            from app.services.airllm_engine import airllm_engine
-            if airllm_engine.is_available() and airllm_engine.current_model_id:
-                return {
-                    "provider": "airllm",
-                    "model": airllm_engine.current_model_id,
-                    "type": "local",
-                    "status": "active",
-                }
-        except Exception:
-            pass
-
         # Check Ollama
         try:
             import httpx
@@ -255,7 +225,7 @@ class ModelCaller:
             "model": "no model available",
             "type": "none",
             "status": "inactive",
-            "message": "Start Ollama, LM Studio, or AirLLM to enable AI features",
+            "message": "Start Ollama or LM Studio, or add a cloud provider key, to enable AI features",
         }
 
     @staticmethod

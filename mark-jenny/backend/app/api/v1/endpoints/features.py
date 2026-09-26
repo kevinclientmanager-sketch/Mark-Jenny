@@ -137,7 +137,6 @@ async def capability_readiness(current_user: User = Depends(get_current_user), d
     from app.core.config import get_settings
     from app.models.agent import ModelProviderConfig
     settings = get_settings()
-    airllm_installed = importlib.util.find_spec("airllm") is not None
     crewai_installed = importlib.util.find_spec("crewai") is not None
     cloud_configured = bool(settings.CLOUD_MODEL_BASE_URL and settings.CLOUD_MODEL_API_KEY)
 
@@ -179,7 +178,6 @@ async def capability_readiness(current_user: User = Depends(get_current_user), d
         "user_provider_keys": user_keys,
         "model_callable": bool(cloud_configured or user_keys),
         "multi_agent": {"available": _has_module("app.services.agent_brain"), "orchestrator": "agent_brain"},
-        "airllm": {"installed": airllm_installed, "enabled": settings.MODEL_RUNTIME_MODE in {"local", "hybrid"}},
         "crewai": {"installed": crewai_installed, "available": crewai_installed},
         "self_build": {
             "available": self_build_ok,

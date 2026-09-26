@@ -6,68 +6,10 @@ from typing import Optional, List, Dict, Any
 from app.db.base import get_db
 from app.core.security import get_current_user
 from app.models.user import User, UserRole
-from app.services.airllm_engine import airllm_engine, SUPPORTED_MODELS
 from app.services.smart_scraper import smart_scraper
 from app.utils.audit import log_audit
 
 router = APIRouter()
-
-
-# === AirLLM Endpoints ===
-
-class AirLLMLoadRequest(BaseModel):
-    model_id: str
-
-class AirLLMGenerateRequest(BaseModel):
-    prompt: str
-    model_id: Optional[str] = None
-    max_new_tokens: int = 2048
-    temperature: float = 0.7
-    top_p: float = 0.9
-    top_k: int = 50
-    repetition_penalty: float = 1.1
-    system_prompt: Optional[str] = None
-    stop: Optional[List[str]] = None
-
-class AirLLMUnloadRequest(BaseModel):
-    model_id: Optional[str] = None
-
-
-@router.get("/airllm/status")
-async def airllm_status(current_user: User = Depends(get_current_user)):
-    return airllm_engine.get_capabilities()
-
-@router.get("/airllm/models")
-async def airllm_list_models(current_user: User = Depends(get_current_user)):
-    return {"models": airllm_engine.list_models(), "available": airllm_engine.is_available()}
-
-@router.post("/airllm/load")
-async def airllm_load(data: AirLLMLoadRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    result = airllm_engine.load_model(data.model_id)
-    await log_audit(db, user_id=current_user.id, action="AIRLLM_LOAD", resource_type="model", resource_id=data.model_id, success=result["success"])
-    return result
-
-@router.post("/airllm/unload")
-async def airllm_unload(data: AirLLMUnloadRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    result = airllm_engine.unload_model(data.model_id)
-    await log_audit(db, user_id=current_user.id, action="AIRLLM_UNLOAD", resource_type="model", resource_id=data.model_id or "current", success=result["success"])
-    return result
-
-@router.post("/airllm/generate")
-async def airllm_generate(data: AirLLMGenerateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    result = await airllm_engine.generate(
-        prompt=data.prompt,
-        model_id=data.model_id,
-        max_new_tokens=data.max_new_tokens,
-        temperature=data.temperature,
-        top_p=data.top_p,
-        top_k=data.top_k,
-        repetition_penalty=data.repetition_penalty,
-        system_prompt=data.system_prompt,
-        stop=data.stop,
-    )
-    await log_audit(db, user_id=current_user.id, action="AIRLLM_GENERATE", resource_type="model", resource_id=data.model_id or airllm_engine.current_model_id or "none", success=result["success"])
-    return result
 
 
 # === Scrapling Endpoints ===

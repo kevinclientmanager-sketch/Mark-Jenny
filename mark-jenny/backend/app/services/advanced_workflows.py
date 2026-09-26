@@ -4,7 +4,7 @@ Inspired by GPT-6 Astra and Claude Mythos 5 capabilities.
 
 These workflows don't depend on any specific model. They use WHATEVER
 model the user has configured — OpenAI, Anthropic, Google, Ollama,
-AirLLM, LM Studio, vLLM, anything. The workflows provide the
+LM Studio, vLLM, anything. The workflows provide the
 STRUCTURE, PLANNING, and DOMAIN EXPERTISE that makes Mark-Imti
 work like a frontier model, regardless of which model is behind it.
 
@@ -90,7 +90,7 @@ Provide a thorough security analysis with specific line references."""
         response = await ModelCaller.call(prompt, self.SYSTEM_PROMPT, temperature=0.1)
 
         if not response:
-            return {"success": False, "error": "No AI model available. Start AirLLM or Ollama."}
+            return {"success": False, "error": "No AI model available. Start Ollama or add a cloud provider key."}
 
         vulns = self._parse_vulnerabilities(response)
         score = self._extract_score(response)

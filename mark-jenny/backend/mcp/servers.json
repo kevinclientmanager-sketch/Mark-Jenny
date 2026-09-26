@@ -1,0 +1,35 @@
+{
+  "servers": {
+    "memory": {
+      "name": "Memory",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {},
+      "type": "stdio",
+      "url": "",
+      "enabled": true,
+      "auto_start": true,
+      "tools": [],
+      "added_at": "2026-09-26T12:53:10.913730"
+    },
+    "context7": {
+      "name": "Context7",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {},
+      "type": "stdio",
+      "url": "",
+      "enabled": true,
+      "auto_start": true,
+      "tools": [],
+      "added_at": "2026-09-26T12:53:10.925695"
+    }
+  },
+  "updated_at": "2026-09-26T12:53:10.925708"
+}

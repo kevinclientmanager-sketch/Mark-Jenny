@@ -380,7 +380,6 @@ async def mcp_connect_from_registry(
     })
     await log_audit(db, user_id=current_user.id, action="MCP_ADD",
                     resource_type="server", resource_id=entry["id"], success=True)
-
     started = None
     if data.auto_start:
         # Re-run the handshake cleanly: a previously running process would
@@ -400,9 +399,6 @@ async def mcp_connect_from_registry(
                 "tools": 0,
                 "tool_list": [],
             }
-        # Record any tools the server advertised so they are browsable.
-        mcp_client.servers[entry["id"]]["tools"] = mcp_client.servers[entry["id"]].get("tools", [])
-        mcp_client._save_config()
 
     return {
         "added": result,

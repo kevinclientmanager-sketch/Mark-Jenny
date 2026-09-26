@@ -90,6 +90,7 @@ class AuditAction(str, enum.Enum):
     MCP_REMOVE = "MCP_REMOVE"
     MCP_START = "MCP_START"
     MCP_CALL = "MCP_CALL"
+    TOOL_CALL = "TOOL_CALL"
 
 
 class AuditLog(Base):

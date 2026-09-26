@@ -36,7 +36,12 @@ async def list_users(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     users = db.query(User).offset(skip).limit(limit).all()
-    return users
+    return [{
+        "id": u.id, "email": u.email, "full_name": u.full_name, "avatar_url": u.avatar_url,
+        "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+        "is_active": u.is_active,
+        "created_at": u.created_at.isoformat() if u.created_at else "",
+    } for u in users]
 
 
 @router.get("/{user_id}", response_model=UserResponse)

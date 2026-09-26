@@ -152,6 +152,50 @@ async def list_providers(current_user: User = Depends(get_current_user), db: Ses
     configs = db.query(ModelProviderConfig).filter(ModelProviderConfig.user_id == current_user.id).all()
     return [ProviderConfigResponse(id=c.id, provider=c.provider.value, base_url=c.base_url, has_key=_has_key(c.api_key_encrypted), is_default=c.is_default, created_at=c.created_at) for c in configs]
 
+
+@router.get("/status")
+async def models_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Which models are connected/configured for this user (powers Settings status dots)."""
+    import httpx
+    from app.core.config import get_settings
+    settings = get_settings()
+    configs = {c.provider: c for c in db.query(ModelProviderConfig).filter(ModelProviderConfig.user_id == current_user.id).all()}
+
+    ollama_models: list = []
+    ollama_ok = False
+    try:
+        async with httpx.AsyncClient(timeout=4) as client:
+            r = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
+            if r.status_code == 200:
+                ollama_ok = True
+                ollama_models = [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:
+        pass
+
+    providers = []
+    for p in ModelProvider:
+        cfg = configs.get(p)
+        has_key = bool(cfg and cfg.api_key_encrypted)
+        reachable = "unknown"
+        if p == ModelProvider.OLLAMA:
+            reachable = "online" if ollama_ok else "offline"
+        elif has_key:
+            reachable = "configured"
+        providers.append({
+            "provider": p.value,
+            "configured": has_key or (p == ModelProvider.OLLAMA and ollama_ok),
+            "has_key": has_key,
+            "is_default": bool(cfg and cfg.is_default),
+            "reachable": reachable,
+            "base_url": cfg.base_url if cfg else None,
+        })
+    return {
+        "providers": providers,
+        "ollama_models": ollama_models,
+        "runtime_mode": (settings.MODEL_RUNTIME_MODE or "cloud"),
+        "chat_ready": any(x["configured"] for x in providers),
+    }
+
 @router.post("/providers", response_model=ProviderConfigResponse)
 async def upsert_provider(data: ProviderConfigCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     existing = db.query(ModelProviderConfig).filter(ModelProviderConfig.user_id==current_user.id, ModelProviderConfig.provider==data.provider).first()

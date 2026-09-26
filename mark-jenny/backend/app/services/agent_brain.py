@@ -1084,60 +1084,10 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
         return self._fallback_response(prompt)
 
     def _fallback_response(self, prompt: str) -> str:
-        """Generate a context-aware response when LLM is unavailable."""
-        user_msg = ""
-        if "User message:" in prompt:
-            user_msg = prompt.split("User message:")[-1].split("Intent detected:")[0].strip()
-        elif "User asked:" in prompt:
-            user_msg = prompt.split("User asked:")[-1].split("I responded:")[0].strip()
-
-        intent = "general"
-        if "Intent detected:" in prompt:
-            intent_line = prompt.split("Intent detected:")[-1].split("\n")[0].strip()
-            intent = intent_line.split("(")[0].strip()
-
-        memories = []
-        if "Relevant memories:" in prompt:
-            mem_block = prompt.split("Relevant memories:")[-1].split("\n\n")[0]
-            memories = [line.strip("- ") for line in mem_block.split("\n") if line.strip().startswith("-")]
-
-        skills = []
-        if "Available skills:" in prompt:
-            skills_line = prompt.split("Available skills:")[-1].split("\n")[0].strip()
-            skills = [s.strip() for s in skills_line.split(",")]
-
-        parts = []
-
-        if intent in ("build", "create", "generate"):
-            parts.append(f"I'll help you build that. Here's my approach:")
-            parts.append(f"1. Analyze your requirements from: \"{user_msg[:100]}\"")
-            if skills:
-                parts.append(f"2. I'll use these skills: {', '.join(skills[:5])}")
-            parts.append(f"3. Create the project structure and implement it")
-            parts.append(f"4. Test and verify the output")
-            parts.append(f"\nI'm ready to start. Let me set up the project now.")
-        elif intent in ("research", "analyze"):
-            parts.append(f"Let me research that for you.")
-            if memories:
-                parts.append(f"\nFrom what I know:\n" + "\n".join(f"- {m[:150]}" for m in memories[:3]))
-            parts.append(f"\nI'll search for the latest information and compile a thorough analysis.")
-        elif intent == "fix":
-            parts.append(f"I'll help fix that issue.")
-            parts.append(f"Let me analyze the problem: \"{user_msg[:100]}\"")
-            if skills:
-                parts.append(f"Relevant skills: {', '.join(skills[:5])}")
-            parts.append(f"I'll identify the root cause and implement a fix.")
-        elif intent == "question":
-            parts.append(f"Good question! Let me help with that.")
-            if memories:
-                parts.append(f"\nBased on what I know:\n" + "\n".join(f"- {m[:150]}" for m in memories[:3]))
-            parts.append(f"\nFor a more detailed answer, configure an AI model in Settings.")
-        else:
-            parts.append(f"I understand you're asking about: \"{user_msg[:100]}\"")
-            if memories:
-                parts.append(f"\nRelevant context:\n" + "\n".join(f"- {m[:150]}" for m in memories[:3]))
-            if skills:
-                parts.append(f"\nAvailable skills: {', '.join(skills[:5])}")
-            parts.append(f"\nI'm ready to help. What would you like me to do?")
-
-        return "\n".join(parts)
+        """Honest notice when no AI model is reachable (never a fake smart reply)."""
+        return (
+            "I am not connected to an AI model right now, so I cannot think or act yet. "
+            "To bring me online: open Settings → AI Studio and add a provider API key "
+            "(OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI or OpenRouter), then talk to me again. "
+            "Local Ollama models also work if Ollama is running with a loaded model."
+        )

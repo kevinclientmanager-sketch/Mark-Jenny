@@ -13,7 +13,7 @@ from app.core.proactive import ProactiveEngine, TriggerType
 from app.core.model_router import ModelRouter, TaskDomain
 from app.core.task_dag import TaskDAG
 
-router = APIRouter(prefix="/agent-engine", tags=["Agent Engine"])
+router = APIRouter(tags=["Agent Engine"])
 
 
 class ProcessRequest(BaseModel):

@@ -90,6 +90,21 @@ export function SettingsContent() {
   const [execResult, setExecResult] = useState<any>(null);
   const [executing, setExecuting] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [modelStatus, setModelStatus] = useState<any>(null);
+
+  const refreshModelStatus = () => {
+    api.get("/ai/status").then((r: any) => setModelStatus(r)).catch(() => {});
+  };
+
+  useEffect(() => { refreshModelStatus(); }, []);
+
+  const setDefaultProvider = async (provider: string) => {
+    try {
+      await api.post("/ai/providers", { provider, is_default: true });
+      toast.add({ title: "Default model updated", type: "success" });
+      refreshModelStatus();
+    } catch { toast.add({ title: "Failed to set default", type: "error" }); }
+  };
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -1011,21 +1026,31 @@ export function SettingsContent() {
                       { provider: "MISTRAL", name: "Mistral", models: ["Mistral Large", "Mistral Small", "Codestral"], color: "text-cyan-600" },
                       { provider: "XAI", name: "xAI (Grok)", models: ["Grok 4", "Grok 3"], color: "text-zinc-600" },
                       { provider: "OPENROUTER", name: "OpenRouter", models: ["All models via proxy"], color: "text-indigo-600" },
-                    ].map((p) => (
+                    ].map((p) => {
+                      const st = (modelStatus?.providers || []).find((x: any) => x.provider === p.provider);
+                      const connected = !!st?.configured;
+                      return (
                       <div key={p.provider} className="border rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className={cn("h-2 w-2 rounded-full", p.color.replace("text-", "bg-"))} />
+                            <span className={cn("h-2 w-2 rounded-full", connected ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600")} title={connected ? "Connected" : "Not connected"} />
                             <span className="text-sm font-medium">{p.name}</span>
+                            {st?.is_default && <Badge variant="default" className="text-[10px]">Default</Badge>}
+                            <span className="text-[11px] text-zinc-500">{connected ? (st?.reachable === "online" ? "Online" : "Key saved") : "Not connected"}</span>
                           </div>
+                          <div className="flex gap-1">
+                            {connected && !st?.is_default && (
+                              <Button size="sm" variant="ghost" onClick={() => setDefaultProvider(p.provider)}>Set default</Button>
+                            )}
                           <Button size="sm" variant="outline" onClick={() => {
                             const key = prompt(`Enter API key for ${p.name}:`);
                             if (key !== null) {
                               api.post("/ai/providers", { provider: p.provider, api_key: key })
-                                .then(() => toast.add({ title: `${p.name} configured`, type: "success" }))
+                                .then(() => { toast.add({ title: `${p.name} configured`, type: "success" }); refreshModelStatus(); })
                                 .catch(() => toast.add({ title: `Failed to configure ${p.name}`, type: "error" }));
                             }
                           }}>Configure</Button>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {p.models.map((m) => (
@@ -1033,7 +1058,8 @@ export function SettingsContent() {
                           ))}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1046,7 +1072,7 @@ export function SettingsContent() {
                     </div>
                     <Button size="sm" variant="outline" onClick={() => {
                       api.post("/ai/providers", { provider: "OLLAMA", base_url: "http://localhost:11434" })
-                        .then(() => toast.add({ title: "Ollama connected", type: "success" }))
+                        .then(() => { toast.add({ title: "Ollama connected", type: "success" }); refreshModelStatus(); })
                         .catch(() => toast.add({ title: "Ollama not running — start with `ollama serve`", type: "error" }));
                     }}>Connect Ollama</Button>
                   </div>

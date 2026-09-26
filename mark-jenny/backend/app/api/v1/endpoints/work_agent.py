@@ -6,7 +6,7 @@ from typing import Optional
 
 from app.core.work_agent import WorkAgent, WorkTaskType
 
-router = APIRouter(prefix="/work-agent", tags=["work-agent"])
+router = APIRouter(tags=["work-agent"])
 
 _work_agent = None
 

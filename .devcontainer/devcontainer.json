@@ -1,0 +1,26 @@
+{
+  "name": "Mark-Imti",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "portsAttributes": {
+    "8000": { "label": "Backend API", "onAutoForward": "openPreview" },
+    "3000": { "label": "Frontend", "onAutoForward": "openPreview" }
+  },
+  "forwardPorts": [8000, 3000],
+  "postCreateCommand": "pip install -r mark-jenny/backend/requirements.txt && cd mark-jenny/frontend && npm install",
+  "postStartCommand": "echo 'Run: mark-jenny backend (python main.py) + frontend (npm run dev -- --webpack --port 3000)'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}

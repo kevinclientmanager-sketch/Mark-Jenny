@@ -52,6 +52,9 @@ async def list_agents(
                 "available_skills": a.available_skills or [],
                 "available_tools": a.available_tools or [],
                 "model_used": model_names.get(a.model_id),
+                # Roster grouping: which lead owns this agent and what job it does.
+                "role": (a.config or {}).get("role") or "",
+                "parent": (a.config or {}).get("parent"),
                 # Aliases so clients that expect agent_type/status (the Agents
                 # page) and clients that expect type/is_active both work.
                 "agent_type": a.type.value if hasattr(a.type, "value") else str(a.type),

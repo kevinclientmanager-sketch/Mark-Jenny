@@ -11,6 +11,20 @@ def init_db() -> None:
     # create_all with checkfirst=True only adds missing tables — safe on existing DBs
     Base.metadata.create_all(bind=engine, checkfirst=True)
     print("Database tables ensured successfully!")
+    # The Imti/Mark agent roster is product data, not user data: seed it on every
+    # boot so the Agents page always shows the real crew instead of an empty list.
+    try:
+        from app.db.base import SessionLocal
+        from app.services.agent_roster import ensure_roster
+        db = SessionLocal()
+        try:
+            created = ensure_roster(db)
+            if created:
+                print(f"Agent roster ensured ({created} new agent(s))!")
+        finally:
+            db.close()
+    except Exception as exc:  # never block startup on seeding
+        print(f"Agent roster seed skipped: {type(exc).__name__}: {exc}")
 
 
 def drop_db() -> None:

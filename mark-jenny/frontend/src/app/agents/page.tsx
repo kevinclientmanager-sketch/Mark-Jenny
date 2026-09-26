@@ -11,10 +11,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bot, Loader2, Brain, Cpu, Wrench, Play, Eye, Lightbulb, CheckCircle2, XCircle } from "lucide-react";
 
-interface Agent { id: number; name: string; agent_type: string; status: string; model_used: string | null; created_at: string; }
+interface Agent {
+  id: number;
+  name: string;
+  agent_type: string;
+  status: string;
+  model_used: string | null;
+  description?: string | null;
+  available_tools?: string[];
+  role?: string;
+  parent?: string | null;
+  created_at: string;
+}
 
 const agentIcons: Record<string, typeof Bot> = {
   planner: Brain, executor: Cpu, reviewer: Wrench, supervisor: Bot,
+};
+
+const LEAD_STYLE: Record<string, { icon: typeof Bot; ring: string; tint: string }> = {
+  Imti: { icon: Brain, ring: "ring-violet-500/30", tint: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300" },
+  Mark: { icon: Wrench, ring: "ring-blue-500/30", tint: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" },
 };
 
 export default function AgentsPage() {
@@ -38,6 +54,9 @@ export default function AgentsPage() {
     })();
     agentBrainApi.insights().then(setInsights).catch(() => {});
   }, []);
+
+  // Roster leads are the agents with no parent: Imti and Mark.
+  const leads = agents.filter((a) => !a.parent);
 
   const doThink = async () => {
     if (!goal.trim() || busy) return;
@@ -190,34 +209,72 @@ export default function AgentsPage() {
 
             {loading ? (
               <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
-            ) : agents.length === 0 ? (
+            ) : leads.length === 0 ? (
               <div className="rounded-lg border border-dashed p-8 text-center">
                 <Bot className="mx-auto h-6 w-6 text-zinc-400" />
                 <p className="mt-2 text-sm font-medium">No agents registered yet</p>
                 <p className="mx-auto mt-1 max-w-md text-xs text-zinc-500">
-                  Agents appear here once they are created. Until then the Agent Brain above is
-                  what actually runs your goals &mdash; give it a goal and press Think or Run.
+                  The Imti and Mark crews appear here once they are registered. Until then the
+                  Agent Brain above is what actually runs your goals &mdash; give it a goal and
+                  press Think or Run.
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {agents.map(a => {
-                  const Icon = agentIcons[a.agent_type] || Bot;
+              <div className="space-y-6">
+                {leads.map((lead) => {
+                  const style = LEAD_STYLE[lead.name] || LEAD_STYLE.Imti;
+                  const LeadIcon = style.icon;
+                  const children = agents.filter((a) => a.parent === lead.name);
                   return (
-                    <Card key={a.id}>
-                      <CardContent className="p-4 flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                          <Icon className="h-5 w-5 text-blue-600" />
+                    <div key={lead.id}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${style.tint}`}>
+                          <LeadIcon className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-medium">{a.name}</p>
-                          <div className="flex gap-2 text-xs text-zinc-500">
-                            <Badge variant="outline">{a.agent_type}</Badge>
-                            <Badge variant={a.status === "active" ? "default" : "secondary"}>{a.status}</Badge>
-                          </div>
+                          <h2 className="text-sm font-semibold">{lead.name}</h2>
+                          <p className="text-[11px] text-zinc-500">
+                            {lead.role === "coding" ? "Coding & building" : "Agent"}
+                          </p>
                         </div>
-                      </CardContent>
-                    </Card>
+                        <Badge variant="outline" className="ml-auto text-[10px]">
+                          {children.length} sub-agent{children.length === 1 ? "" : "s"}
+                        </Badge>
+                      </div>
+                      {lead.description && (
+                        <p className="mb-3 text-xs text-zinc-500">{lead.description}</p>
+                      )}
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {children.map((a) => {
+                          const Icon = agentIcons[a.role || ""] || Bot;
+                          return (
+                            <Card key={a.id} className={`ring-1 ${style.ring}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${style.tint}`}>
+                                    <Icon className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">{a.name}</p>
+                                    <p className="truncate text-[11px] text-zinc-500 capitalize">{a.role || a.agent_type}</p>
+                                  </div>
+                                </div>
+                                {a.description && (
+                                  <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{a.description}</p>
+                                )}
+                                {a.available_tools && a.available_tools.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {a.available_tools.map((t) => (
+                                      <Badge key={t} variant="secondary" className="text-[9px]">{t}</Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>

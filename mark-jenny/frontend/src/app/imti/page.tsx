@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { workAgentApi, WorkTask, WorkPattern, Prediction } from '@/lib/api/workAgent';
+import ModelProviderPicker from '@/components/chat/ModelProviderPicker';
 import { MessageSquare, Briefcase, Send, Loader2, CheckCircle2, Mail, FolderOpen, Bot, Brain, TrendingUp, Plus, ArrowLeft } from 'lucide-react';
 
 type ImtiMode = 'chat' | 'work' | null;
@@ -178,15 +179,21 @@ export default function ImtiPage() {
             <div ref={chatEndRef} />
           </div>
           <div className="border-t border-zinc-200 dark:border-zinc-800 p-3">
-            <div className="flex gap-2">
-              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChatSend()}
-                placeholder="Message Imti..."
-                className="flex-1 px-4 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                <Send className="h-4 w-4" />
-              </button>
+            <div className="rounded-[26px] border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+              <div className="flex gap-2 p-1.5">
+                <input value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChatSend()}
+                  placeholder="Message Imti..."
+                  className="flex-1 px-3 py-2 text-sm border-none bg-transparent focus:outline-none focus:ring-0" />
+                <button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}
+                  className="px-3 py-2 bg-zinc-900 text-white rounded-full hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 disabled:opacity-50">
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+              {/* Provider + model selector - inside the composer border */}
+              <div className="border-t border-zinc-100 px-2 py-1 dark:border-zinc-800">
+                <ModelProviderPicker mode="imti" />
+              </div>
             </div>
           </div>
         </div>

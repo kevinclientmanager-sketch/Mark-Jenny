@@ -10,6 +10,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { BrowserView } from "@/components/chat/BrowserView";
 import { browserApi } from "@/lib/api/browser";
 import { chatApi, Chat, Message } from "@/lib/api/chat";
+import { api } from "@/lib/api/client";
 import { filesApi } from "@/lib/api/files";
 import { projectsApi, Project } from "@/lib/api/projects";
 import { useTaskRealTime } from "@/lib/hooks/useTaskWebSocket";
@@ -329,6 +330,15 @@ export default function ChatPage() {
     if (!activeChatId) return;
     setSending(true);
     try {
+      // The composer picker persists the chosen model; honour it per message
+      // unless the caller explicitly overrode it.
+      let chosen = opts?.model;
+      if (!chosen) {
+        try {
+          const prefs = await api.get<any>("/settings/ai");
+          chosen = prefs?.default_model || undefined;
+        } catch { /* no saved preference - the router picks */ }
+      }
       const route = routeIntent(text);
       const created = await ensureProject(text, route.tool);
       const targetProjectId = created?.id ?? projectId;
@@ -339,7 +349,7 @@ export default function ChatPage() {
         project: created ? { id: created.id, name: created.name } : undefined,
       });
       if (created) fetchProjects();
-      await chatApi.sendMessage(activeChatId, { content: text, project_id: targetProjectId, think: opts?.think, model: opts?.model });
+      await chatApi.sendMessage(activeChatId, { content: text, project_id: targetProjectId, think: opts?.think, model: chosen });
       await fetchMsgs(activeChatId);
       const res = await chatApi.list({ page: 1, page_size: 50 });
       setChats(res.chats);

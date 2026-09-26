@@ -388,16 +388,18 @@ class ModelRouter:
         return cands[0] if cands else None
 
 # Helper to seed default models if empty
-DEFAULT_MODELS = [
-    {"name": "gpt-4o-mini", "display_name": "GPT-4o Mini (Fast)", "provider": ModelProvider.OPENAI, "model_id": "gpt-4o-mini", "capabilities": ["CHAT"], "context_window": 128000, "cost_per_1k_input": 15, "cost_per_1k_output": 60, "is_local": False},
-    {"name": "claude-3.5-sonnet", "display_name": "Claude 3.5 Sonnet (Reasoning)", "provider": ModelProvider.ANTHROPIC, "model_id": "claude-3-5-sonnet", "capabilities": ["CHAT","REASONING","CODING"], "context_window": 200000, "cost_per_1k_input": 300, "cost_per_1k_output": 1500, "is_local": False},
-    {"name": "gemini-2.0-flash", "display_name": "Gemini 2.0 Flash (Vision)", "provider": ModelProvider.GOOGLE, "model_id": "gemini-2.0-flash", "capabilities": ["CHAT","VISION","CODING"], "context_window": 1000000, "cost_per_1k_input": 10, "cost_per_1k_output": 40, "is_local": False},
-    {"name": "llama3.1:8b", "display_name": "Llama 3.1 8B (Local)", "provider": ModelProvider.OLLAMA, "model_id": "llama3.1:8b", "capabilities": ["CHAT","CODING"], "context_window": 128000, "cost_per_1k_input": 0, "cost_per_1k_output": 0, "is_local": True},
-    {"name": "dall-e-3", "display_name": "DALL-E 3 (Image)", "provider": ModelProvider.OPENAI, "model_id": "dall-e-3", "capabilities": ["IMAGE_GENERATION"], "context_window": 4000, "cost_per_1k_input": 4000, "cost_per_1k_output": 4000, "is_local": False},
-]
+def DEFAULT_MODELS():  # noqa: N802 - kept for backwards compatibility
+    from app.services.model_catalog_seed import default_models
+    return default_models()
+
 
 def ensure_default_models(db: Session):
+    """Seed the multi-provider starter catalogue when the table is empty.
+
+    Previously this inserted 5 models; the picker then had nothing to show for
+    OpenAI/Anthropic/xAI/DeepSeek/Mistral or the free providers.
+    """
     if db.query(Model).count() == 0:
-        for m in DEFAULT_MODELS:
-            db.add(Model(**m))
+        for m in DEFAULT_MODELS():
+            db.add(m)
         db.commit()

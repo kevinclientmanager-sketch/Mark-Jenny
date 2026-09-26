@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, AudioWaveform, Loader2, Square, Sparkles, Mic, MicOff, Phone, PhoneOff, Gamepad2, Trophy, Brain, Eye, Shield, Zap } from "lucide-react";
 import { plusPromptTemplates, PlusAction, PlusMenu } from "./PlusMenu";
+import ModelProviderPicker from "./ModelProviderPicker";
 import { VoiceOrb } from "./VoiceOrb";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -618,6 +619,11 @@ export function ChatInput({
               </div>
             </div>
           )}
+
+          {/* Provider + model selector - inside the composer's bottom border, centred */}
+          <div className="border-t border-zinc-100 px-2 py-1 dark:border-zinc-800">
+            <ModelProviderPicker mode={mode} />
+          </div>
         </div>
         <p className="mt-2 text-center text-[11px] text-zinc-400">
           {mode === "work"

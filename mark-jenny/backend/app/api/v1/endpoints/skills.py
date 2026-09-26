@@ -359,7 +359,7 @@ async def install_official(name: str, current_user: User = Depends(get_current_u
     from app.services.skill_playbook import author_playbook, is_template
     if is_template(skill.instructions):
         try:
-            pb = author_playbook(
+            pb = await author_playbook(
                 name=reg["name"], description=reg["description"],
                 tools=reg["tools"], permissions=reg["permissions"],
                 db=db, user_id=current_user.id,

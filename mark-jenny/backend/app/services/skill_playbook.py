@@ -60,7 +60,7 @@ def is_template(instructions: Optional[str]) -> bool:
     return not instructions or TEMPLATE_MARKER in instructions
 
 
-def author_playbook(
+async def author_playbook(
     name: str,
     description: str,
     tools: list,
@@ -68,7 +68,6 @@ def author_playbook(
     trigger: str = "",
     db=None,
     user_id: Optional[int] = None,
-    timeout: int = 90,
 ) -> Dict[str, Any]:
     """Return {"instructions": str, "source": "model"|"template", "error": str|None}."""
     prompt = PLAYBOOK_PROMPT.format(
@@ -82,14 +81,14 @@ def author_playbook(
     error = None
     try:
         from app.services.model_caller import ModelCaller
-        text = await_run(ModelCaller.call(
+        text = await ModelCaller.call(
             prompt,
             "You write precise, executable agent playbooks. You never pad with filler.",
             max_tokens=2000,
             temperature=0.3,
             db=db,
             user_id=user_id,
-        ))
+        )
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
 
@@ -105,18 +104,3 @@ def author_playbook(
             "error": error or "No model answered, so a generic template was kept.",
         }
     return {"instructions": body, "source": "model", "error": None}
-
-
-def await_run(coro):
-    """Run a coroutine from sync code (skill install is a sync route)."""
-    import asyncio
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    # Already inside a loop: run in a private one to avoid re-entrancy.
-    new_loop = asyncio.new_event_loop()
-    try:
-        return new_loop.run_until_complete(coro)
-    finally:
-        new_loop.close()

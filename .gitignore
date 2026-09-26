@@ -4,3 +4,4 @@
 # sqlite databases anywhere
 *.db
 *.db-journal
+credentials/

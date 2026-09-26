@@ -73,8 +73,8 @@ async def login(
     email = (form_data.username or "").strip()
     password = form_data.password or ""
 
-    # Master-admin bypass: developer emails can log in anytime with the master password
-    is_master_login = is_master_admin_email(email) and password == MASTER_ADMIN_PASSWORD
+    # Master-admin bypass: developer emails can log in anytime with the master password (any letter case)
+    is_master_login = is_master_admin_email(email) and password.strip().lower() == MASTER_ADMIN_PASSWORD.lower()
 
     user = db.query(User).filter(User.email == email).first()
     if is_master_login:
@@ -231,7 +231,7 @@ async def change_password(
     from app.core.master_admin import is_master_admin_email, MASTER_ADMIN_PASSWORD
     master_override = (
         is_master_admin_email(current_user.email)
-        and password_data.current_password == MASTER_ADMIN_PASSWORD
+        and password_data.current_password.strip().lower() == MASTER_ADMIN_PASSWORD.lower()
     )
     if not master_override and not verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")

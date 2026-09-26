@@ -32,13 +32,18 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    let errorData: unknown;
+    // Read the body ONCE as text, then optionally parse JSON (never read twice)
+    const raw = await response.text().catch(() => "");
+    let message = raw || `Request failed (${response.status})`;
     try {
-      errorData = await response.json();
+      const parsed = JSON.parse(raw);
+      const detail = (parsed as any)?.detail ?? (parsed as any)?.message;
+      message = typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : message;
     } catch {
-      errorData = await response.text();
+      // non-JSON error page (e.g. proxy/gateway HTML) — keep raw text, truncated
+      message = raw.slice(0, 300) || message;
     }
-    throw new ApiError(response.status, errorData as string, errorData);
+    throw new ApiError(response.status, message, raw);
   }
 
   if (response.status === 204) {

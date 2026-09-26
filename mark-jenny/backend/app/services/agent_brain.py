@@ -1006,6 +1006,10 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
             )
             if result and len(result) > 5:
                 return result
+            # Keep the provider's own failure reason for the honest fallback text.
+            last_error = getattr(ModelCaller, "last_error", None)
+            if last_error:
+                self._provider_error = last_error
         except Exception:
             pass
 
@@ -1103,12 +1107,18 @@ You are Mark-Imti. You don't just answer questions — you solve problems."""
                 saved = []
         saved = [p for p in saved if p != ModelProvider.OLLAMA.value]
 
+        # The router records why the provider call failed. Report that instead of
+        # making the user guess which of key/credit/model/quota is the problem.
+        real_error = getattr(self, "_provider_error", None)
         if saved:
+            reason = (f"The provider reported: {real_error}"
+                      if real_error else
+                      "The provider gave no usable response.")
             return (
                 "Your message reached me, but the model provider could not answer it. "
-                f"A key is saved for {', '.join(saved)}, so this is most likely an invalid or expired key, "
-                "no credit on the account, or a model name the provider does not recognise. "
-                "Open Settings → AI Studio and press Test on that provider to see the exact error, then send this again."
+                f"A key is saved for {', '.join(saved)}. {reason} "
+                "Fix it in Settings → AI Studio: press Test on that provider to see the exact error, "
+                "or pick a different model, then send this again."
             )
         return (
             "I have no AI model connected yet, so I cannot think or act. "

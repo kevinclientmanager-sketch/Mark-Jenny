@@ -60,6 +60,36 @@ class ModelRouter:
         self.db = db
         self.user_id = user_id
         self.registry = ModelRegistry(db)
+        #: Why the last call_model() attempt failed, so callers can tell the user
+        #: the truth instead of guessing ("maybe your key is invalid?").
+        self.last_error: Optional[str] = None
+
+    @staticmethod
+    def _describe_http_error(provider: str, status_code: int, body: str) -> str:
+        """Turn a provider HTTP failure into one honest, actionable sentence."""
+        friendly = {
+            400: "rejected the request (bad model name or parameters)",
+            401: "rejected the API key as invalid",
+            402: "reported no credit on the account",
+            403: "denied access to that model",
+            404: "has no endpoint for that model id",
+            429: "rate limited the key (no quota or too many requests)",
+            500: "returned a server error",
+            502: "is currently unavailable (bad gateway)",
+            503: "is overloaded and returned no answer",
+        }.get(status_code, f"returned HTTP {status_code}")
+        detail = (body or "").strip()
+        if len(detail) > 220:
+            detail = detail[:220] + "..."
+        return f"{provider} {friendly}" + (f" - {detail}" if detail else "")
+
+    def _record_error(self, provider: str, status_code: Optional[int] = None, body: str = "", exc: Optional[BaseException] = None) -> None:
+        if exc is not None:
+            self.last_error = f"{provider} could not be reached - {type(exc).__name__}: {exc}"
+        elif status_code is not None:
+            self.last_error = self._describe_http_error(provider, status_code, body)
+        else:
+            self.last_error = f"{provider} returned no usable response."
 
     def _score_model(self, model: Model, task_type: str, prefer_local: bool = False, prefer_cheap: bool = False) -> float:
         # Lower score is better
@@ -262,6 +292,7 @@ class ModelRouter:
         """Call the user's configured cloud provider (saved in Settings). Default config first."""
         import httpx
 
+        self.last_error = None
         configs = self.db.query(ModelProviderConfig).filter(
             ModelProviderConfig.user_id == self.user_id
         ).all()
@@ -293,6 +324,7 @@ class ModelRouter:
                         text = "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
                         if text.strip():
                             return text.strip()
+                    self._record_error("Anthropic", r.status_code, (r.text or "")[:300])
                     continue
                 if cfg.provider == ModelProvider.GOOGLE:
                     model = conf.get("model") or self.PROVIDER_DEFAULT_MODELS[ModelProvider.GOOGLE]
@@ -310,6 +342,7 @@ class ModelRouter:
                         text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
                         if text.strip():
                             return text.strip()
+                    self._record_error("Google", r.status_code, (r.text or "")[:300])
                     continue
                 # Everything else via the OpenAI-compatible API. The base URL
                 # comes from the discovered model row when available, so any
@@ -325,6 +358,10 @@ class ModelRouter:
                         ).first()
                         if mrow and isinstance(mrow.config, dict):
                             api_base = mrow.config.get("api_base") or ""
+                        elif mrow is None:
+                            # The saved model id is not in this provider's catalogue.
+                            # Sending it anyway produces a 404 and looks like a dead key.
+                            chosen = None
                     except Exception:
                         api_base = ""
                 base = (api_base or conf.get("api_base") or cfg.base_url
@@ -355,7 +392,11 @@ class ModelRouter:
                         content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
                     if content and str(content).strip():
                         return str(content).strip()
-            except Exception:
+                    self._record_error(cfg.provider.value, r.status_code, (r.text or "")[:300])
+                else:
+                    self._record_error(cfg.provider.value, r.status_code, (r.text or "")[:300])
+            except Exception as exc:
+                self._record_error(cfg.provider.value, exc=exc)
                 continue
         return ""
 

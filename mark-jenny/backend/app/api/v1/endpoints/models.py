@@ -315,13 +315,23 @@ async def test_provider(data: ProviderTestRequest, current_user: User = Depends(
                     json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 16}},
                 )
         else:
-            url = f"{base or 'https://api.openai.com/v1'}/chat/completions"
+            # Resolve the provider's real endpoint. This used to fall back to
+            # api.openai.com for everything, so testing an OpenRouter/Groq/DeepSeek
+            # key sent it to OpenAI and reported a bogus "invalid API key".
+            if not base:
+                from app.services.model_discovery import PROVIDER_SPECS
+                base = (PROVIDER_SPECS.get(data.provider.value, {}).get("api_base") or "").rstrip("/")
+            url = base if base.endswith("/chat/completions") else f"{base or 'https://api.openai.com/v1'}/chat/completions"
             default_model = {
                 ModelProvider.OPENAI: "gpt-4o-mini",
                 ModelProvider.DEEPSEEK: "deepseek-chat",
                 ModelProvider.MISTRAL: "mistral-small-latest",
                 ModelProvider.XAI: "grok-2-latest",
                 ModelProvider.OPENROUTER: "openai/gpt-4o-mini",
+                ModelProvider.GROQ: "llama-3.3-70b-versatile",
+                ModelProvider.CEREBRAS: "llama-3.3-70b",
+                ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                ModelProvider.FIREWORKS: "accounts/fireworks/models/llama-v3p3-70b-instruct",
             }.get(data.provider, "gpt-4o-mini")
             async with httpx.AsyncClient(timeout=45) as client:
                 r = await client.post(

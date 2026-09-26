@@ -49,6 +49,8 @@ class ModelCaller:
         """
         runtime_mode = (settings.MODEL_RUNTIME_MODE or "cloud").lower()
         responses = []
+        #: Why the configured provider failed, so the UI can report the real reason.
+        ModelCaller.last_error = None
 
         # Production is cloud-first. Local inference is opt-in so a deployed
         # backend never stalls on localhost connection timeouts.
@@ -176,6 +178,8 @@ class ModelCaller:
                     result = await router.call_model(prompt, system, max_tokens, temperature)
                     if result:
                         return result
+                    if getattr(router, "last_error", None):
+                        ModelCaller.last_error = router.last_error
         except Exception:
             pass
 

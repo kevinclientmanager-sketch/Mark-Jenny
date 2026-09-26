@@ -1,3 +1,5 @@
+import importlib.util
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -71,40 +73,132 @@ CAPABILITY_AUDIT = [
 ]
 
 
+def _derive_status(owner: str) -> str:
+    """Compute a capability's status from whether its modules actually import.
+
+    The audit table used to ship hand-written IMPLEMENTED / PARTIALLY
+    IMPLEMENTED verdicts that were never checked against the code.
+    """
+    import importlib
+    tokens = [t.strip() for t in re.split(r"[,\s]+", owner or "") if t.strip()]
+    modules = []
+    for t in tokens:
+        if t in {"and", "the", "model", "and"}:
+            continue
+        for cand in (f"app.services.{t}", f"app.core.{t}", f"app.api.v1.endpoints.{t}", f"app.models.{t}"):
+            modules.append(cand)
+    found = 0
+    for m in modules:
+        try:
+            if importlib.util.find_spec(m) is not None:
+                found += 1
+        except Exception:
+            continue
+    if not modules:
+        return "UNKNOWN"
+    if found == 0:
+        return "NOT IMPLEMENTED"
+    if found < len(modules):
+        return "PARTIALLY IMPLEMENTED"
+    return "IMPLEMENTED"
+
+
 @router.get("/audit")
 async def capability_audit(current_user: User = Depends(get_current_user)):
-    """Return the inspected 48-feature map and current implementation strength."""
+    """Capability map with status derived from the real codebase."""
     counts = {}
     capabilities = []
-    for number, name, status, owner in CAPABILITY_AUDIT:
+    for number, name, _declared, owner in CAPABILITY_AUDIT:
+        status = _derive_status(owner)
         counts[status] = counts.get(status, 0) + 1
-        capabilities.append({"number": number, "name": name, "status": status, "owner": owner})
-    return {"total": len(capabilities), "counts": counts, "capabilities": capabilities}
+        capabilities.append({
+            "number": number, "name": name, "status": status, "owner": owner,
+            "declared_status": _declared,
+            "status_source": "derived_from_modules",
+        })
+    return {
+        "total": len(capabilities),
+        "counts": counts,
+        "capabilities": capabilities,
+        "note": "status is computed by checking that each capability's modules import; "
+                "declared_status shows the previous hand-written value for comparison",
+    }
 
 
 
 @router.get("/readiness")
-async def capability_readiness(current_user: User = Depends(get_current_user)):
-    """Return actionable runtime readiness for premium agent capabilities."""
+async def capability_readiness(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Runtime readiness computed from the actual system state.
+
+    Previously this returned hardcoded `true` for multi_agent, self_build and
+    governance, which reported capability that was never verified.
+    """
     import importlib.util
     from app.core.config import get_settings
+    from app.models.agent import ModelProviderConfig
     settings = get_settings()
     airllm_installed = importlib.util.find_spec("airllm") is not None
     crewai_installed = importlib.util.find_spec("crewai") is not None
     cloud_configured = bool(settings.CLOUD_MODEL_BASE_URL and settings.CLOUD_MODEL_API_KEY)
-    local_configured = bool(settings.OLLAMA_BASE_URL)
+
+    # A model is only "ready" if this user actually has a usable provider key.
+    user_keys = 0
+    try:
+        user_keys = db.query(ModelProviderConfig).filter(
+            ModelProviderConfig.user_id == current_user.id,
+            ModelProviderConfig.api_key_encrypted.isnot(None),
+        ).count()
+    except Exception:
+        user_keys = 0
+
+    def _has_module(path: str) -> bool:
+        try:
+            return importlib.util.find_spec(path) is not None
+        except Exception:
+            return False
+
+    from app.core.rate_limit import limiter as _limiter
+    try:
+        from app.models.approval import Approval
+        approvals_ok = db.query(Approval).limit(1).all() is not None
+    except Exception:
+        approvals_ok = False
+    try:
+        from app.models.audit import AuditLog
+        audit_ok = db.query(AuditLog).limit(1).all() is not None
+    except Exception:
+        audit_ok = False
+
+    sandbox_ok = _has_module("app.services.code_execution_engine")
+    self_build_ok = _has_module("app.services.self_build_orchestrator")
+
     return {
         "runtime_mode": settings.MODEL_RUNTIME_MODE,
         "cloud_model": {"configured": cloud_configured, "model": settings.CLOUD_MODEL_NAME},
-        "local_model": {"configured": local_configured, "model": settings.OLLAMA_MODEL},
-        "multi_agent": {"available": True, "orchestrator": "agent_brain"},
+        "local_model": {"configured": bool(settings.OLLAMA_BASE_URL), "model": settings.OLLAMA_MODEL},
+        "user_provider_keys": user_keys,
+        "model_callable": bool(cloud_configured or user_keys),
+        "multi_agent": {"available": _has_module("app.services.agent_brain"), "orchestrator": "agent_brain"},
         "airllm": {"installed": airllm_installed, "enabled": settings.MODEL_RUNTIME_MODE in {"local", "hybrid"}},
         "crewai": {"installed": crewai_installed, "available": crewai_installed},
-        "self_build": {"available": True, "self_evaluation": True, "rollback": True},
-        "governance": {"approvals": True, "audit_log": True, "rate_limits": True},
+        "self_build": {
+            "available": self_build_ok,
+            "self_evaluation": _has_module("app.services.qa_engine"),
+            "rollback": self_build_ok,
+        },
+        "governance": {
+            "approvals": approvals_ok,
+            "audit_log": audit_ok,
+            "rate_limits": hasattr(_limiter, "max_requests"),
+            "sandbox": sandbox_ok,
+        },
         "recommendations": [
-            *([] if cloud_configured else ["Configure a cloud model endpoint for production runs."]),
-            *([] if crewai_installed else ["Install CrewAI only if Crew-based orchestration is required; native orchestration is already available."]),
+            *([] if (cloud_configured or user_keys) else [
+                "No AI provider is reachable. Add an API key in Settings > AI Studio - "
+                "without one every agent step returns an explicit offline notice."
+            ]),
+            *([] if crewai_installed else ["CrewAI is not installed; native orchestration is used instead."]),
+            *([] if sandbox_ok else ["Code execution sandbox module could not be imported."]),
         ],
     }
 

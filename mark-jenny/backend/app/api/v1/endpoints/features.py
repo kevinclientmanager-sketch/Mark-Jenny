@@ -350,7 +350,22 @@ async def mcp_connect_from_registry(
     """Add a registry server with its real launch config, then start it."""
     from app.services.mcp_registry import registry_entry
     import shutil
+    import traceback
+    import logging
 
+    try:
+        return await _connect_registry(server_id, data, current_user, db, registry_entry, shutil)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.getLogger("mcp").exception("MCP registry connect failed for %s", server_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(exc).__name__}: {exc}",
+        )
+
+
+async def _connect_registry(server_id, data, current_user, db, registry_entry, shutil):
     entry = registry_entry(server_id)
     if not entry:
         raise HTTPException(status_code=404, detail=f"'{server_id}' is not in the MCP registry")

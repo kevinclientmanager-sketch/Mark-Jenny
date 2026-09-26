@@ -304,9 +304,15 @@ async def fetch_provider_models(
 
 
 def provider_catalog() -> List[Dict[str, Any]]:
-    """Catalogue of providers Mark-Imti can discover models from."""
+    """Catalogue of providers offered in the UI.
+
+    CUSTOM is intentionally excluded: a self-hosted base URL is an advanced
+    power-user escape hatch, not something to present in a picker.
+    """
     rows = []
     for key, spec in PROVIDER_SPECS.items():
+        if key == "CUSTOM":
+            continue
         rows.append({
             "provider": key,
             "label": spec["label"],
@@ -314,7 +320,7 @@ def provider_catalog() -> List[Dict[str, Any]]:
             "api_base": spec.get("api_base"),
             "signup_url": spec.get("signup", ""),
             "note": spec.get("note", ""),
-            "discovery": bool(spec.get("models_url")) or key == "CUSTOM",
+            "discovery": bool(spec.get("models_url")),
         })
     rows.append({
         "provider": "OLLAMA",

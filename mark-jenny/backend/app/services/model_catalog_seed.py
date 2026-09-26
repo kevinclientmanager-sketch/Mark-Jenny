@@ -92,6 +92,15 @@ _API_BASES = {
 }
 
 
+#: Providers whose models are genuinely $0 to call. Everything else is paid,
+#: even when the vendor happens to hand out a small free quota (Google) or
+#: routes some OpenRouter ids through a ":free" alias.
+FREE_PROVIDERS = {
+    "GROQ", "CEREBRAS", "TOGETHER", "FIREWORKS",
+    "NVIDIA", "HUGGINGFACE", "OLLAMA",
+}
+
+
 def default_models():
     """Build the seed Model rows."""
     from app.models.agent import Model, ModelProvider
@@ -100,6 +109,9 @@ def default_models():
         p = ModelProvider(provider)
         # Anthropic is not OpenAI-compatible: it has its own messages endpoint.
         api_base = None if provider == "ANTHROPIC" else _API_BASES.get(provider)
+        # `free` must mean $0 to call. It used to be hardcoded True, which put a
+        # bogus FREE badge on every paid model (GPT-5, Claude, Grok, ...).
+        is_free = provider in FREE_PROVIDERS
         rows.append(Model(
             name=model_id,
             display_name=display,
@@ -112,6 +124,6 @@ def default_models():
             cost_per_1k_output=cost_out,
             is_local=(p == ModelProvider.OLLAMA),
             is_active=True,
-            config={"api_base": api_base, "free": True, "source": "seed"},
+            config={"api_base": api_base, "free": is_free, "source": "seed"},
         ))
     return rows

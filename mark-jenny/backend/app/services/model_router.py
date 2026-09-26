@@ -396,10 +396,30 @@ def DEFAULT_MODELS():  # noqa: N802 - kept for backwards compatibility
 def ensure_default_models(db: Session):
     """Seed the multi-provider starter catalogue when the table is empty.
 
-    Previously this inserted 5 models; the picker then had nothing to show for
-    OpenAI/Anthropic/xAI/DeepSeek/Mistral or the free providers.
+    Also backfills the `free` flag: an earlier version wrote free=true for
+    every seeded row, so paid models (GPT-5, Claude, Grok) showed a bogus FREE
+    badge in the picker.
     """
+    from app.services.model_catalog_seed import FREE_PROVIDERS
+
     if db.query(Model).count() == 0:
         for m in DEFAULT_MODELS():
             db.add(m)
         db.commit()
+        return
+
+    changed = 0
+    try:
+        for m in db.query(Model).all():
+            if not isinstance(m.config, dict) or m.config.get("source") != "seed":
+                continue
+            correct = m.provider.value in FREE_PROVIDERS
+            if bool(m.config.get("free")) != correct:
+                cfg = dict(m.config)
+                cfg["free"] = correct
+                m.config = cfg
+                changed += 1
+        if changed:
+            db.commit()
+    except Exception:
+        db.rollback()

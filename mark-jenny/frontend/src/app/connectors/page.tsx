@@ -5,12 +5,13 @@ import { Header } from "@/components/layout/header";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { projectWorkspaceApi, Connector, ConnectorCredential } from "@/lib/api/projectWorkspace";
 import { projectsApi } from "@/lib/api/projects";
+import { api } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plug, Plus, Loader2, Globe, Key, Terminal, Check, X, RefreshCw, Unlink, Shield } from "lucide-react";
+import { Plug, Plus, Loader2, Globe, Key, Terminal, Check, X, RefreshCw, Unlink, Shield, Zap } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
 export default function ConnectorsPage() {
@@ -26,6 +27,83 @@ export default function ConnectorsPage() {
   const [connectAuth, setConnectAuth] = useState("API_KEY");
   const [connectCreds, setConnectCreds] = useState("");
   const [connecting, setConnecting] = useState(false);
+
+  // MCP registry + built-in tools
+  const [registry, setRegistry] = useState<any[]>([]);
+  const [registryLoading, setRegistryLoading] = useState(false);
+  const [tools, setTools] = useState<any[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [registryTarget, setRegistryTarget] = useState<any | null>(null);
+  const [registryEnv, setRegistryEnv] = useState<Record<string, string>>({});
+  const [registryBusy, setRegistryBusy] = useState(false);
+
+  const loadRegistry = useCallback(async () => {
+    setRegistryLoading(true);
+    try {
+      const r = await api.get<any>("/features/mcp/registry");
+      setRegistry(r?.servers || []);
+    } catch { setRegistry([]); } finally { setRegistryLoading(false); }
+  }, []);
+
+  const loadTools = useCallback(async () => {
+    setToolsLoading(true);
+    try {
+      const r = await api.get<any>("/features/mcp/tools");
+      setTools(r?.tools || []);
+    } catch { setTools([]); } finally { setToolsLoading(false); }
+  }, []);
+
+  useEffect(() => { loadRegistry(); }, [loadRegistry]);
+
+  const openRegistry = (r: any) => {
+    setRegistryTarget(r);
+    const seeded: Record<string, string> = {};
+    for (const k of [...(r.required_env || []), ...(r.optional_env || [])]) seeded[k] = "";
+    setRegistryEnv(seeded);
+  };
+
+  const startRegistry = async (id: string) => {
+    try {
+      const r = await api.post<any>(`/features/mcp/servers/${id}/start`, {});
+      const n = r?.tools?.length ?? r?.result?.tools?.length ?? 0;
+      toast.add({
+        title: r?.success ? `${id} started` : `${id} failed to start`,
+        description: r?.success ? `${n} tool(s) advertised.` : (r?.error || "unknown error"),
+        type: r?.success ? "success" : "error",
+      });
+      loadRegistry();
+    } catch (e: any) {
+      toast.add({ title: "Start failed", description: e?.message || "", type: "error" });
+    }
+  };
+
+  const connectRegistry = async () => {
+    if (!registryTarget) return;
+    const missing = (registryTarget.required_env || []).filter((k: string) => !registryEnv[k]);
+    if (missing.length) {
+      toast.add({ title: `Enter ${missing.join(", ")}`, type: "error" });
+      return;
+    }
+    setRegistryBusy(true);
+    try {
+      const r = await api.post<any>(`/features/mcp/registry/${registryTarget.id}/connect`, {
+        env: registryEnv, auto_start: true,
+      });
+      const ok = r?.start?.success;
+      const toolsFound = r?.start?.tools?.length ?? 0;
+      toast.add({
+        title: ok ? `${registryTarget.label} connected` : `${registryTarget.label} added but not started`,
+        description: ok
+          ? `${toolsFound} tool(s) available.`
+          : (r?.start?.error || "The server did not start."),
+        type: ok ? "success" : "error",
+      });
+      setRegistryTarget(null);
+      loadRegistry();
+    } catch (e: any) {
+      toast.add({ title: "Connect failed", description: e?.message || "", type: "error" });
+    } finally { setRegistryBusy(false); }
+  };
 
   // Custom API builder
   const [customName, setCustomName] = useState("");
@@ -215,6 +293,74 @@ const handleConnect = async ()=>{
               </TabsContent>
 
               <TabsContent value="mcp" className="flex-1 overflow-auto">
+                <Card className="p-6 mb-4">
+                  <h3 className="font-semibold mb-1 flex items-center gap-2"><Zap className="h-4 w-4"/> Featured MCP Servers</h3>
+                  <p className="text-sm text-zinc-500 mb-3">One-click install with the correct launch configuration already filled in.</p>
+                  {registryLoading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin"/></div> : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {registry.map(r => (
+                        <Card key={r.id} className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium text-sm">{r.label}</p>
+                              <p className="text-[11px] text-zinc-500">{r.category}</p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              {r.connected && <Badge className="bg-green-600 text-[10px]">Connected</Badge>}
+                              {!r.runtime_available && <Badge variant="outline" className="text-[10px]">No runtime</Badge>}
+                            </div>
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-1.5">{r.description}</p>
+                          <p className="text-[10px] text-zinc-400 mt-1 break-all">{r.command} {r.args.join(" ")}</p>
+                          {!r.runtime_available && (
+                            <p className="text-[10px] text-amber-600 mt-1">
+                              `{r.command}` is not installed on this host. {r.note || "Install it on the server/desktop that runs Mark-Imti."}
+                            </p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            {!r.connected ? (
+                              <Button size="sm" onClick={() => openRegistry(r)}>
+                                <Plug className="mr-1 h-3 w-3"/>Connect
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => startRegistry(r.id)}>
+                                <RefreshCw className="mr-1 h-3 w-3"/>Start
+                              </Button>
+                            )}
+                            {r.docs_url && (
+                              <a href={r.docs_url} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="ghost">Docs</Button>
+                              </a>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+
+                <Card className="p-6 mb-4">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2"><Terminal className="h-4 w-4"/> Mark-Imti Built-in Tools</h3>
+                  <p className="text-sm text-zinc-500 mb-2">Your own skills, memory, knowledge, sandbox, files and model are callable through the same tool interface.</p>
+                  <Button size="sm" variant="outline" onClick={loadTools} disabled={toolsLoading}>
+                    {toolsLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <Terminal className="mr-1 h-3 w-3"/>}
+                    List callable tools ({tools.length})
+                  </Button>
+                  {tools.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {tools.map(t => (
+                        <div key={`${t.server}-${t.name}`} className="border rounded-lg p-2">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{t.name}</p>
+                            <Badge variant="outline" className="text-[10px]">{t.server}</Badge>
+                          </div>
+                          <p className="text-[11px] text-zinc-500">{t.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+
                 <Card className="p-6">
                   <h3 className="font-semibold mb-2 flex items-center gap-2"><Terminal className="h-4 w-4"/> Custom MCP Configuration</h3>
                   <p className="text-sm text-zinc-500 mb-1">Desktop: runs local MCP process. Web: shows <em>Local MCP requires desktop</em> if unsupported - never pretends.</p>
@@ -230,6 +376,39 @@ const handleConnect = async ()=>{
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {registryTarget && (
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={()=>setRegistryTarget(null)}>
+                <Card className="w-full max-w-md" onClick={e=>e.stopPropagation()}>
+                  <CardContent className="p-6 space-y-3">
+                    <h3 className="font-semibold">Connect {registryTarget.label}</h3>
+                    <p className="text-sm text-zinc-500">{registryTarget.description}</p>
+                    {Object.keys(registryEnv).map(k => (
+                      <div key={k}>
+                        <label className="text-sm font-medium">
+                          {k} {(registryTarget.required_env || []).includes(k) ? "*" : "(optional)"}
+                        </label>
+                        <Input
+                          type="password"
+                          value={registryEnv[k]}
+                          onChange={e => setRegistryEnv(prev => ({ ...prev, [k]: e.target.value }))}
+                          placeholder={k}
+                        />
+                      </div>
+                    ))}
+                    {Object.keys(registryEnv).length === 0 && (
+                      <p className="text-xs text-zinc-500">This server needs no secrets.</p>
+                    )}
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={()=>setRegistryTarget(null)}>Cancel</Button>
+                      <Button onClick={connectRegistry} disabled={registryBusy} className="bg-blue-600 hover:bg-blue-700">
+                        {registryBusy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Starting</> : <><Check className="mr-2 h-4 w-4"/>Connect &amp; start</>}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {showConnect && (
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={()=>setShowConnect(null)}>

@@ -28,15 +28,54 @@ class MCPClient:
         self._load_config()
 
     def _load_config(self):
+        # Persisted in the database so connected servers survive a deploy.
+        # Falls back to the on-disk file for local/desktop use.
+        try:
+            from app.db.base import SessionLocal
+            from app.models.system_kv import SystemKV
+            db = SessionLocal()
+            try:
+                row = db.query(SystemKV).filter(SystemKV.key == "mcp_servers").first()
+                if row and isinstance(row.value, dict):
+                    self.servers = row.value.get("servers", {}) or {}
+                    return
+            finally:
+                db.close()
+        except Exception:
+            pass
         if MCP_CONFIG_FILE.exists():
-            with open(MCP_CONFIG_FILE) as f:
-                self.servers = json.load(f).get("servers", {})
+            try:
+                with open(MCP_CONFIG_FILE) as f:
+                    self.servers = json.load(f).get("servers", {})
+            except Exception:
+                self.servers = {}
         else:
             self.servers = {}
 
     def _save_config(self):
-        with open(MCP_CONFIG_FILE, "w") as f:
-            json.dump({"servers": self.servers, "updated_at": datetime.utcnow().isoformat()}, f, indent=2)
+        payload = {"servers": self.servers, "updated_at": datetime.utcnow().isoformat()}
+        try:
+            from app.db.base import SessionLocal
+            from app.models.system_kv import SystemKV
+            db = SessionLocal()
+            try:
+                row = db.query(SystemKV).filter(SystemKV.key == "mcp_servers").first()
+                if not row:
+                    row = SystemKV(key="mcp_servers", value=payload)
+                    db.add(row)
+                else:
+                    row.value = payload
+                db.commit()
+                return
+            finally:
+                db.close()
+        except Exception:
+            pass
+        try:
+            with open(MCP_CONFIG_FILE, "w") as f:
+                json.dump(payload, f, indent=2)
+        except Exception:
+            pass
 
     def list_servers(self) -> List[Dict]:
         return [{"id": k, **v} for k, v in self.servers.items()]

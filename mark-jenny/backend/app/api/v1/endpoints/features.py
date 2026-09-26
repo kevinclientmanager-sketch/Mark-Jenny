@@ -313,6 +313,125 @@ async def mcp_call_tool(data: MCPToolCall, current_user: User = Depends(get_curr
     await log_audit(db, user_id=current_user.id, action="MCP_CALL", resource_type="tool", resource_id=f"{data.server_id}/{data.tool_name}", success=result["success"])
     return result
 
+
+# --- Curated registry: connect known MCP servers in one click -----------
+
+class RegistryConnect(BaseModel):
+    env: Optional[Dict[str, str]] = {}
+    auto_start: bool = True
+
+
+@router.get("/mcp/registry")
+async def mcp_registry(current_user: User = Depends(get_current_user)):
+    """Known-good MCP servers with their launch config and required secrets."""
+    from app.services.mcp_registry import MCP_REGISTRY
+    import shutil
+    connected = {s.get("id") for s in mcp_client.list_servers()}
+    rows = []
+    for r in MCP_REGISTRY:
+        rows.append({
+            **r,
+            "connected": r["id"] in connected,
+            "runtime_available": bool(shutil.which(r["command"])) if r.get("command") else False,
+        })
+    return {
+        "servers": rows,
+        "note": "runtime_available is false when the launch command is not installed on this host.",
+    }
+
+
+@router.post("/mcp/registry/{server_id}/connect")
+async def mcp_connect_from_registry(
+    server_id: str,
+    data: RegistryConnect,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a registry server with its real launch config, then start it."""
+    from app.services.mcp_registry import registry_entry
+    import shutil
+
+    entry = registry_entry(server_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"'{server_id}' is not in the MCP registry")
+
+    missing = [k for k in entry.get("required_env", []) if not (data.env or {}).get(k)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required value(s): {', '.join(missing)}",
+        )
+
+    if not shutil.which(entry["command"]):
+        raise HTTPException(
+            status_code=400,
+            detail=f"`{entry['command']}` is not installed on this host, so {entry['label']} "
+                   f"cannot start here. {entry.get('note') or ''}".strip(),
+        )
+
+    result = mcp_client.add_server(entry["id"], {
+        "name": entry["label"],
+        "command": entry["command"],
+        "args": entry["args"],
+        "env": data.env or {},
+        "type": "stdio",
+        "enabled": True,
+        "auto_start": data.auto_start,
+    })
+    await log_audit(db, user_id=current_user.id, action="MCP_ADD",
+                    resource_type="server", resource_id=entry["id"], success=True)
+
+    started = None
+    if data.auto_start:
+        started = await mcp_client.start_server(entry["id"])
+        # Record any tools the server advertised so they are browsable.
+        mcp_client.servers[entry["id"]]["tools"] = mcp_client.servers[entry["id"]].get("tools", [])
+        mcp_client._save_config()
+
+    return {
+        "added": result,
+        "start": started,
+        "server": next((s for s in mcp_client.list_servers() if s.get("id") == entry["id"]), None),
+    }
+
+
+@router.get("/mcp/tools")
+async def mcp_all_tools(current_user: User = Depends(get_current_user)):
+    """Every callable tool: Mark-Imti's own skills/tools plus live MCP servers."""
+    from app.services import builtin_tools
+    tools = list(builtin_tools.list_tools())
+    for s in mcp_client.list_servers():
+        for t in s.get("tools", []) or []:
+            tools.append({
+                "name": t.get("name"),
+                "description": t.get("description", ""),
+                "server": s.get("id"),
+                "inputSchema": t.get("inputSchema") or t.get("input_schema") or {},
+            })
+    return {"tools": tools, "count": len(tools),
+            "sources": {"builtin": len(builtin_tools.list_tools()),
+                        "mcp_servers": len(tools) - len(builtin_tools.list_tools())}}
+
+
+class BuiltinToolCall(BaseModel):
+    tool_name: str
+    arguments: Optional[Dict[str, Any]] = {}
+
+
+@router.post("/mcp/tools/call")
+async def mcp_call_builtin(data: BuiltinToolCall, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Invoke one of Mark-Imti's own tools (skills, memory, knowledge, sandbox, files, model)."""
+    from app.services import builtin_tools
+    try:
+        out = await builtin_tools.call_tool(data.tool_name, data.arguments or {}, db, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
+    await log_audit(db, user_id=current_user.id, action="TOOL_CALL",
+                    resource_type="tool", resource_id=data.tool_name, success=True)
+    return {"success": True, "tool": data.tool_name, "result": out}
+
 @router.get("/mcp/tools")
 async def mcp_list_tools(current_user: User = Depends(get_current_user)):
     return {"tools": mcp_client.get_all_tools()}

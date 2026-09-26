@@ -7,16 +7,10 @@ settings = get_settings()
 
 
 def init_db() -> None:
-    """Initialize database tables."""
-    inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    
-    if not existing_tables:
-        print("Creating database tables...")
-        Base.metadata.create_all(bind=engine)
-        print("Database tables created successfully!")
-    else:
-        print(f"Database already exists with tables: {existing_tables}")
+    """Initialize database tables (creates any missing ones, keeps existing data)."""
+    # create_all with checkfirst=True only adds missing tables — safe on existing DBs
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+    print("Database tables ensured successfully!")
 
 
 def drop_db() -> None:

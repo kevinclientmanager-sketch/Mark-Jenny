@@ -226,13 +226,24 @@ class ModelRouter:
 
     @staticmethod
     def _decrypt_key(enc: Optional[str]) -> str:
+        """Decrypt a provider key. Handles fernet:, b64: and legacy bare base64."""
         if not enc:
             return ""
         try:
+            if enc.startswith("fernet:"):
+                from app.services.credential_vault import _decrypt
+                return _decrypt(enc[len("fernet:"):])
+            if enc.startswith("b64:"):
+                import base64
+                return base64.b64decode(enc[4:].encode()).decode()
+            # Legacy values written before encryption was introduced.
             import base64
-            return base64.b64decode(enc.encode()).decode()
+            try:
+                return base64.b64decode(enc.encode()).decode()
+            except Exception:
+                return enc
         except Exception:
-            return enc
+            return ""
 
     async def call_model(
         self,

@@ -6,7 +6,7 @@ from typing import Optional, List
 from app.db.base import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.generated import GeneratedWebsite, GeneratedApp
+from app.models.generated import GeneratedWebsite, GeneratedApp, GeneratedStatus
 from sqlalchemy import desc
 from app.models.task import Task, TaskStatus, TaskPriority
 from app.services.generative_engine import generative_engine
@@ -25,6 +25,7 @@ class GenerateResponse(BaseModel):
     files: List[dict]
     message: str
     preview_url: Optional[str] = None
+    ai_powered: bool = True
 
 def _create_task(db: Session, user: User, prompt: str, project_id: Optional[int], type: str) -> Task:
     t = Task(title=f"[{type}] {prompt[:50]}", description=prompt, original_request=prompt, status=TaskStatus.COMPLETED, priority=TaskPriority.NORMAL, owner_id=user.id, project_id=project_id, agent_type=type)
@@ -41,8 +42,36 @@ async def _generate(db: Session, user: User, req: GenerateRequest, method: str) 
     # Update task result
     task.result = result
     db.commit()
+
+    # Record the artefact so the Library and Data Controls pages are not
+    # permanently empty - nothing used to write these tables.
+    ai_powered = bool(result.get("ai_powered"))
+    title = req.prompt[:80].replace("\n", " ")
+    try:
+        if method == "website":
+            db.add(GeneratedWebsite(
+                owner_id=user.id, project_id=req.project_id, task_id=task.id,
+                name=title, prompt=req.prompt,
+                status=GeneratedStatus.COMPLETED if ai_powered else GeneratedStatus.FAILED,
+                files=result.get("files", []), preview_url=result.get("preview_url"),
+            ))
+        elif method == "app":
+            db.add(GeneratedApp(
+                owner_id=user.id, project_id=req.project_id, task_id=task.id,
+                name=title, prompt=req.prompt,
+                status=GeneratedStatus.COMPLETED if ai_powered else GeneratedStatus.FAILED,
+                files=result.get("files", []), preview_url=result.get("preview_url"),
+            ))
+        db.commit()
+    except Exception:
+        db.rollback()
+
     await log_audit(db, user_id=user.id, action="TASK_CREATE", resource_type="task", resource_id=str(task.id), success=True)
-    return GenerateResponse(task_id=task.id, type=result["type"], files=result["files"], message=result["message"], preview_url=result.get("preview_url"))
+    return GenerateResponse(
+        task_id=task.id, type=result["type"], files=result["files"],
+        message=result["message"], preview_url=result.get("preview_url"),
+        ai_powered=ai_powered,
+    )
 
 @router.post("/website", response_model=GenerateResponse)
 async def generate_website(req: GenerateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

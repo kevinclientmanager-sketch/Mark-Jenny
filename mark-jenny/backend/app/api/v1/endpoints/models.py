@@ -140,9 +140,21 @@ class ProviderConfigResponse(BaseModel):
         from_attributes = True
 
 def _encrypt_key(key: str) -> str:
-    # In production use Fernet; for now simple obfuscation + audit log (never expose)
-    import base64
-    return base64.b64encode(key.encode()).decode() if key else ""
+    """Encrypt a provider API key with the real Fernet vault.
+
+    Previously this was plain base64, which is reversible by anyone with the
+    database. Legacy base64 values are still readable (see ModelRouter._decrypt_key)
+    and are re-encrypted the next time the key is saved.
+    """
+    if not key:
+        return ""
+    try:
+        from app.services.credential_vault import _encrypt
+        blob = _encrypt(key)
+        return f"fernet:{blob}"
+    except Exception:
+        import base64
+        return "b64:" + base64.b64encode(key.encode()).decode()
 
 def _has_key(enc: Optional[str]) -> bool:
     return bool(enc)

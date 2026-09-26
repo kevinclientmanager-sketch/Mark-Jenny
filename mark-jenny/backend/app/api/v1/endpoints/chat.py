@@ -412,19 +412,21 @@ async def send_message(
     try:
         await _run_autonomous_pipeline(db, chat, user_msg, current_user, think=data.think, model=data.model)
     except Exception as exc:
-        # Never leave a user message without an assistant turn. The provider error is
-        # intentionally not exposed; the UI receives a recoverable status instead.
+        # Never leave a user message without an assistant turn. The reason is
+        # recorded so the failure is diagnosable instead of silently generic.
         db.rollback()
+        import logging
+        logging.getLogger("chat").exception("Autonomous pipeline failed for chat %s", chat.id)
         fallback = (
-            "I received your request, but the configured AI provider is temporarily "
-            "unavailable. Your message is saved. Start or reconnect a model provider "
-            "in Settings, then send it again."
+            "I received your request, but the reply pipeline failed before a model could answer. "
+            f"Reason: {type(exc).__name__}: {exc}. Your message is saved — please try again."
         )
         db.add(Message(
             chat_id=chat.id,
             role=MessageRole.ASSISTANT,
             content=fallback,
-            message_metadata={"status": "provider_unavailable", "retryable": True},
+            message_metadata={"status": "pipeline_error", "retryable": True,
+                              "error_type": type(exc).__name__, "error": str(exc)[:500]},
         ))
         db.commit()
 

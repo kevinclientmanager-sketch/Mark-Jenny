@@ -18,6 +18,7 @@ from app.models.file import File, FileType, Folder
 from app.models.skill import Skill, SkillSource, SkillStatus
 from app.models.task import Task
 from app.models.connector import Connector, ConnectorType, ConnectorStatus, ConnectorCredential, AuthType
+from app.models.instruction_version import InstructionVersion as ProjectInstructionVersion
 from app.utils.audit import log_audit
 
 router = APIRouter()
@@ -161,11 +162,16 @@ async def get_project_instructions(
     ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Get version history from a separate table or compute from audit logs
-    # For now, return current instructions
-    versions = []  # Would query instruction_versions table
-    
+
+    # Real version history from the instruction_versions table.
+    rows = db.query(ProjectInstructionVersion).filter(
+        ProjectInstructionVersion.project_id == project.id
+    ).order_by(ProjectInstructionVersion.version.desc()).limit(50).all()
+    versions = [InstructionVersion(
+        id=r.id, project_id=r.project_id, content=r.content,
+        version=r.version, created_by=r.created_by, created_at=r.created_at,
+    ) for r in rows]
+
     return InstructionResponse(
         project_id=project.id,
         content=project.instructions or "",
@@ -187,17 +193,34 @@ async def update_project_instructions(
     ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Create version snapshot before update
-    # In production, save to instruction_versions table
-    
+
+    # Snapshot the previous content before overwriting it.
+    prev = (project.instructions or "").strip()
+    if prev:
+        latest = db.query(ProjectInstructionVersion).filter(
+            ProjectInstructionVersion.project_id == project.id
+        ).order_by(ProjectInstructionVersion.version.desc()).first()
+        next_version = (latest.version + 1) if latest else 1
+        db.add(ProjectInstructionVersion(
+            project_id=project.id, content=prev,
+            version=next_version, created_by=current_user.id,
+        ))
+
     project.instructions = instruction_data.content
     db.commit()
     db.refresh(project)
-    
+
     await log_audit(db, user_id=current_user.id, action="PROJECT_INSTRUCTIONS_UPDATE",
                    resource_type="project", resource_id=str(project.id), success=True)
-    
+
+    rows = db.query(ProjectInstructionVersion).filter(
+        ProjectInstructionVersion.project_id == project.id
+    ).order_by(ProjectInstructionVersion.version.desc()).limit(50).all()
+    versions = [InstructionVersion(
+        id=r.id, project_id=r.project_id, content=r.content,
+        version=r.version, created_by=r.created_by, created_at=r.created_at,
+    ) for r in rows]
+
     return InstructionResponse(
         project_id=project.id,
         content=project.instructions or "",

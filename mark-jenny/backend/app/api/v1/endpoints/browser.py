@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -152,3 +152,25 @@ async def screenshot(session_id: str, current_user: User = Depends(get_current_u
     if not data:
         raise HTTPException(status_code=400, detail="Screenshot not available - requires Playwright")
     return Response(content=data, media_type="image/png")
+
+@router.get("/fetch")
+async def fetch_page(url: str, current_user: User = Depends(get_current_user)):
+    """Fetch a page server-side so the browser view can offer a real download.
+
+    A cross-origin iframe cannot be downloaded from the client, so the bytes
+    are retrieved here and streamed back.
+    """
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Only http/https URLs can be fetched")
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            r = await client.get(url, headers={"User-Agent": "Mark-Imti/1.0"})
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach the site: {exc}")
+    if r.status_code >= 400:
+        raise HTTPException(status_code=r.status_code, detail=f"Site returned HTTP {r.status_code}")
+    return Response(
+        content=r.content,
+        media_type=r.headers.get("content-type", "text/html"),
+    )

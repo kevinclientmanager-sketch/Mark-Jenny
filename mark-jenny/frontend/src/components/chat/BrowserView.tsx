@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/api/chat";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -56,6 +57,18 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
   const [urlInput, setUrlInput] = useState("");
   const [bookmarked, setBookmarked] = useState(false);
   const [showDevtools, setShowDevtools] = useState(false);
+
+  const toggleBookmark = () => {
+    if (!currentUrl) return;
+    setBookmarked((prev) => {
+      let saved: string[] = [];
+      try { saved = JSON.parse(localStorage.getItem("mark.imti.bookmarks") || "[]"); } catch { saved = []; }
+      if (!Array.isArray(saved)) saved = [];
+      saved = prev ? saved.filter((u) => u !== currentUrl) : [...new Set([...saved, currentUrl])];
+      try { localStorage.setItem("mark.imti.bookmarks", JSON.stringify(saved)); } catch { /* quota */ }
+      return !prev;
+    });
+  };
 
   const currentUrl = browserTabs.find((t) => t.id === activeBrowserTab)?.url || browserUrl || "";
 
@@ -130,6 +143,14 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, []);
+
+  // Bookmarks are real and persisted per browser profile.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("mark.imti.bookmarks") || "[]");
+      setBookmarked(Array.isArray(saved) && !!currentUrl && saved.includes(currentUrl));
+    } catch { /* ignore malformed storage */ }
+  }, [currentUrl]);
 
   return (
     <div ref={containerRef} className="flex-1 flex min-h-0">
@@ -227,7 +248,7 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
           </div>
 
           {/* Action buttons */}
-          <button onClick={() => setBookmarked(!bookmarked)} className={cn("p-1.5 rounded-md transition-colors", bookmarked ? "text-yellow-500" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200")} title="Bookmark this page">
+          <button onClick={toggleBookmark} className={cn("p-1.5 rounded-md transition-colors", bookmarked ? "text-yellow-500" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200")} title={bookmarked ? "Remove bookmark" : "Bookmark this page"}>
             <Star className={cn("h-4 w-4", bookmarked && "fill-current")} />
           </button>
           <button onClick={() => { if (currentUrl) navigator.clipboard.writeText(currentUrl).catch(() => undefined); }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Copy link">
@@ -236,10 +257,34 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
           <button onClick={() => { if (currentUrl) window.open(currentUrl, "_blank"); }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Open in new window">
             <ExternalLink className="h-4 w-4" />
           </button>
-          <button onClick={() => { if (currentUrl) { const a = document.createElement("a"); a.href = currentUrl; a.download = ""; a.click(); } }} className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors" title="Download">
+          <button
+            onClick={async () => {
+              if (!currentUrl) return;
+              // A cross-origin iframe cannot be downloaded directly, so fetch
+              // the page through the backend and save that.
+              try {
+                const res = await fetch(`/api/v1/browser/fetch?url=${encodeURIComponent(currentUrl)}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = currentUrl.replace(/^https?:\/\//, "").replace(/[^\w.-]+/g, "_") || "page.html";
+                a.click();
+                URL.revokeObjectURL(a.href);
+              } catch {
+                toast.add({
+                  title: "Download blocked",
+                  description: "This site does not allow automated downloads. Use 'Open in new window' and save it manually.",
+                  type: "error",
+                });
+              }
+            }}
+            className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            title="Download this page"
+          >
             <Download className="h-4 w-4" />
           </button>
-          <button onClick={() => setShowDevtools(!showDevtools)} className={cn("p-1.5 rounded-md transition-colors", showDevtools ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200")} title="DevTools">
+          <button onClick={() => setShowDevtools(!showDevtools)} className={cn("p-1.5 rounded-md transition-colors", showDevtools ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200")} title="Page details">
             <Code className="h-4 w-4" />
           </button>
         </div>
@@ -265,10 +310,14 @@ export function BrowserView({ messages, sessions, onSend, sending, activeChatId,
                 <button onClick={() => setShowDevtools(false)} className="ml-auto text-zinc-500 hover:text-zinc-300"><X className="h-3 w-3" /></button>
               </div>
               <div className="space-y-1 text-[11px]">
-                <p><span className="text-zinc-500">URL:</span> <span className="text-blue-400">{currentUrl}</span></p>
-                <p><span className="text-zinc-500">Status:</span> <span className="text-green-400">Loaded</span></p>
+                <p><span className="text-zinc-500">URL:</span> <span className="text-blue-400 break-all">{currentUrl}</span></p>
+                <p><span className="text-zinc-500">Rendered:</span> <span className="text-green-400">in an embedded frame</span></p>
                 <p><span className="text-zinc-500">Session:</span> <span className="text-zinc-400">{sessions[0]?.id?.slice(0, 12) || "None"}</span></p>
-                <p className="text-zinc-500 mt-2">Console output and page inspection available when connected to live session.</p>
+                <p className="text-zinc-500 mt-2">
+                  This panel shows what Mark-Imti knows about the page. Live DevTools, console logs and
+                  the DOM require the desktop app or a Playwright session - a cross-origin frame cannot
+                  expose them.
+                </p>
               </div>
             </div>
           )}

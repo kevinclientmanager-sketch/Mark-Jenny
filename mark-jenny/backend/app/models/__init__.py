@@ -15,6 +15,7 @@ from app.models.builder_access import BuilderAccess
 from app.models.generated import GeneratedWebsite, GeneratedApp, GeneratedType, GeneratedStatus, BrowserSession
 from app.models.user_settings import UserSettings
 from app.models.system_kv import SystemKV
+from app.models.instruction_version import InstructionVersion as ProjectInstructionVersion
 
 __all__ = [
     "User", "UserRole", "Session",
@@ -34,4 +35,5 @@ __all__ = [
     "GeneratedWebsite", "GeneratedApp", "GeneratedType", "GeneratedStatus", "BrowserSession",
     "UserSettings",
     "SystemKV",
+    "ProjectInstructionVersion",
 ]

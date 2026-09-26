@@ -154,8 +154,8 @@ export default function ModelProviderPicker({ mode }: { mode?: string }) {
           {provider && <span className="sr-only">{model || "Auto"} / {provider}</span>}
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-hidden p-0">
-          {/* ---------- providers ---------- */}
+        <DropdownMenuContent align="end" className="w-64 max-h-80 overflow-hidden p-0">
+          {/* ---------- providers: single-line compact rows ---------- */}
           {view === "providers" && (
             <div className="max-h-80 overflow-auto p-1">
               <div className="flex items-center justify-between px-2 py-1.5">
@@ -164,53 +164,45 @@ export default function ModelProviderPicker({ mode }: { mode?: string }) {
                 </span>
                 <button
                   onClick={load}
-                  className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-600"
+                  aria-label="Reload providers"
+                  className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                 >
                   {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                 </button>
               </div>
 
               <DropdownMenuItem
-                onClick={(e: React.MouseEvent) => {
-                  e.preventDefault();
-                  setProvider(""); setModel(""); persist("", "");
-                }}
-                className="gap-2 py-1.5"
+                closeOnClick={false}
+                onClick={() => { setProvider(""); setModel(""); persist("", ""); }}
+                className="h-8 gap-2 py-0 text-sm"
               >
                 <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                <span className="flex-1 text-sm">Auto</span>
+                <span className="flex-1 truncate">Auto</span>
                 {!provider && <Check className="h-3.5 w-3.5 shrink-0" />}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1" />
 
               {catalog.map((c) => {
                 const keyed = hasKey(c.provider);
                 return (
-                  <div key={c.provider} className="flex items-center gap-1">
+                  <div key={c.provider} className="flex items-center">
                     <DropdownMenuItem
-                      onClick={(e: React.MouseEvent) => {
-                        e.preventDefault();
+                      closeOnClick={false}
+                      onClick={() => {
                         setActive(c);
                         setQuery("");
                         setView("models");
                       }}
-                      className="flex-1 gap-2 py-1.5"
+                      className="h-8 flex-1 gap-2 py-0 text-sm"
                     >
                       {keyed
                         ? <Check className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                        : <Server className="h-3.5 w-3.5 shrink-0 text-zinc-400" />}
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-sm">{c.label}</span>
-                          {c.free_tier && (
-                            <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">FREE</span>
-                          )}
-                        </div>
-                        <div className="truncate text-[11px] text-zinc-500">
-                          {keyed ? "Key saved" : "Key required"}
-                        </div>
-                      </div>
+                        : <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600" />}
+                      <span className="flex-1 truncate">{c.label}</span>
+                      {c.free_tier && (
+                        <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">FREE</span>
+                      )}
                       <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                     </DropdownMenuItem>
 
@@ -223,8 +215,8 @@ export default function ModelProviderPicker({ mode }: { mode?: string }) {
                           setErr(null);
                           setKeyFor(c);
                         }}
-                        title={`Add ${c.label} API key`}
-                        className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
+                        title={`Add ${c.label} key`}
+                        className="mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
                       >
                         <KeyRound className="h-3.5 w-3.5" />
                       </button>
@@ -284,14 +276,14 @@ export default function ModelProviderPicker({ mode }: { mode?: string }) {
 
               <DropdownMenuItem
                 onClick={() => { setModel(""); setProvider(active.provider); persist(active.provider, ""); }}
-                className="gap-2 py-1.5"
+                className="h-8 gap-2 py-0 text-sm"
               >
                 <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                <span className="flex-1 text-sm">Auto (provider default)</span>
+                <span className="flex-1 truncate">Auto (provider default)</span>
                 {model === "" && <Check className="h-3.5 w-3.5 shrink-0" />}
               </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1" />
 
               {providerModels.map((m) => {
                 const isFree = !!(m.config as any)?.free;
@@ -303,21 +295,15 @@ export default function ModelProviderPicker({ mode }: { mode?: string }) {
                       setProvider(m.provider);
                       persist(m.provider, m.model_id);
                     }}
-                    className="gap-2 py-1.5"
+                    className="h-8 gap-2 py-0"
                   >
                     <Cpu className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-[13px]">{m.display_name || m.model_id}</span>
-                        {isFree && (
-                          <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">FREE</span>
-                        )}
-                      </div>
-                      <div className="truncate text-[10px] text-zinc-500">
-                        {m.model_id}
-                        {m.context_window ? ` · ${Math.round(m.context_window / 1000)}k ctx` : ""}
-                      </div>
-                    </div>
+                    <span className="flex-1 truncate text-[13px]">
+                      {m.display_name || m.model_id}
+                    </span>
+                    {isFree && (
+                      <span className="shrink-0 rounded bg-emerald-100 px-1 py-px text-[9px] font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">FREE</span>
+                    )}
                     {model === m.model_id && <Check className="h-3.5 w-3.5 shrink-0" />}
                   </DropdownMenuItem>
                 );

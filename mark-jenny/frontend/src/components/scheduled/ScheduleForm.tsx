@@ -46,7 +46,7 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
         setConnectors(c as Connector[]);
         // Agents: try to fetch if endpoint exists, else static fallback
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/agents`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }});
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/agents`, { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }});
           if (res.ok) {
             const data = await res.json();
             setAgents(Array.isArray(data) ? data : data.agents || []);

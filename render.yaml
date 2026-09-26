@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: mark-imti-backend
+    runtime: python
+    rootDir: mark-jenny/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: mark-imti-web
+    runtime: node
+    rootDir: mark-jenny/frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: BACKEND_HOST
+        fromService:
+          type: web
+          name: mark-imti-backend
+          property: host
+      - key: BACKEND_PORT
+        fromService:
+          type: web
+          name: mark-imti-backend
+          property: port

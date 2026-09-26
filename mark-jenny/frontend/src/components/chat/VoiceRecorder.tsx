@@ -32,7 +32,7 @@ export function VoiceRecorder({ onTranscribed, onModeChange }: { onTranscribed: 
           formData.append("audio", blob, "recording.webm");
           formData.append("format", "webm");
           const token = localStorage.getItem("access_token");
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/voice/transcribe`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "/api/v1"}/voice/transcribe`, {
             method: "POST",
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: formData,

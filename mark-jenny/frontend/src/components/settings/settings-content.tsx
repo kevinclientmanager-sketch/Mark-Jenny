@@ -187,7 +187,7 @@ export function SettingsContent() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
       const token = localStorage.getItem("access_token");
       await fetch(`${API_BASE}/auth/me`, {
         method: "PATCH",

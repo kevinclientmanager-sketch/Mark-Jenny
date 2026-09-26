@@ -42,7 +42,7 @@ export const skillsApi = {
   installOfficial: async (name: string): Promise<Skill> => api.post<Skill>(`/skills/official/${name}/install`, {}),
   upload: async (file: File): Promise<Skill> => {
     const fd = new FormData(); fd.append('file', file);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/skills/upload`, { method:'POST', headers:{ Authorization:`Bearer ${localStorage.getItem('access_token')}`}, body: fd, credentials:'include' });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/skills/upload`, { method:'POST', headers:{ Authorization:`Bearer ${localStorage.getItem('access_token')}`}, body: fd, credentials:'include' });
     if(!res.ok) throw new Error((await res.json()).detail || 'Upload failed');
     return res.json();
   },

@@ -21,7 +21,7 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setSaving(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
       const token = localStorage.getItem("access_token");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;

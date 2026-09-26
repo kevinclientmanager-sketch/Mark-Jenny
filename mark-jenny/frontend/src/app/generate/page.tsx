@@ -113,7 +113,7 @@ export default function GeneratePage() {
                             <p className="text-xs text-zinc-600">Task #{result.task_id} • {result.files.length} file(s)</p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {result.files.map((f:any)=>(
-                                <a key={f.id} href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/files/${f.id}/download`} target="_blank" className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-white dark:bg-zinc-800 border rounded hover:bg-zinc-50">
+                                <a key={f.id} href={`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/files/${f.id}/download`} target="_blank" className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-white dark:bg-zinc-800 border rounded hover:bg-zinc-50">
                                   <Download className="h-3 w-3"/>{f.name} ({Math.round(f.size/1024)}KB)
                                 </a>
                               ))}

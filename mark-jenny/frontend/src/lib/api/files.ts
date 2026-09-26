@@ -99,7 +99,7 @@ export const filesApi = {
   },
 
   downloadFile: async (id: number): Promise<Blob> => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/files/${id}/download`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/files/${id}/download`, {
       credentials: 'include',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -120,7 +120,7 @@ export const filesApi = {
     if (options?.task_id) formData.append('task_id', String(options.task_id));
     if (options?.folder_id) formData.append('folder_id', String(options.folder_id));
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/files/upload`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/files/upload`, {
       method: 'POST',
       credentials: 'include',
       headers: {

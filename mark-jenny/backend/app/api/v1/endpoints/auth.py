@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import secrets
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -56,10 +57,14 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    
-    await send_verification_email(user.email, user.id)
+
+    # A mail failure must not block sign-up, but it must not be reported as sent either.
+    try:
+        await send_verification_email(user.email, user.id)
+    except Exception as exc:
+        logging.getLogger("auth").warning("Verification email not delivered to %s: %s", user.email, exc)
     await log_audit(db, user_id=user.id, action="REGISTER", resource_type="user", resource_id=str(user.id), success=True)
-    
+
     return user
 
 
@@ -248,7 +253,11 @@ async def change_password(
 async def forgot_password(reset_data: PasswordResetRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == reset_data.email).first()
     if user:
-        await send_password_reset_email(user.email, user.id)
+        try:
+            await send_password_reset_email(user.email, user.id)
+        except Exception as exc:
+            logging.getLogger("auth").warning("Password reset email not delivered to %s: %s", user.email, exc)
+    # Always the same response so the endpoint cannot be used to discover accounts.
     return {"message": "If the email exists, a password reset link has been sent"}
 
 

@@ -21,6 +21,74 @@ from app.models.connector import Connector, ConnectorType, ConnectorStatus, Conn
 from app.utils.audit import log_audit
 
 router = APIRouter()
+
+
+async def _verify_connector(credential, connector) -> tuple[bool, str]:
+    """Attempt a real handshake with the connector's upstream service.
+
+    Returns (verified, error_message). Nothing is assumed to work: if the
+    provider cannot be reached or rejects the credential, this returns False.
+    """
+    from app.services.credential_vault import _decrypt
+    import json as _json
+
+    raw = getattr(credential, "encrypted_credentials", None) or {}
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except Exception:
+            raw = {}
+    conf = {}
+    for k, v in (raw or {}).items():
+        try:
+            conf[k] = _decrypt(v) if isinstance(v, str) and v[:8] in ("fernet:", "B64:") else v
+        except Exception:
+            conf[k] = v
+
+    ctype = connector.type.value if hasattr(connector.type, "value") else str(connector.type)
+    try:
+        if ctype == "gmail":
+            host, port = conf.get("imap_host") or "imap.gmail.com", int(conf.get("imap_port") or 993)
+            import imaplib
+            m = imaplib.IMAP4_SSL(host, port)
+            try:
+                m.login(conf.get("email") or conf.get("username") or "", conf.get("password") or "")
+            finally:
+                m.close()
+            return True, ""
+        if ctype == "github":
+            import httpx
+            token = conf.get("access_token") or conf.get("token") or conf.get("pat") or ""
+            if not token:
+                return False, "no access token supplied"
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get("https://api.github.com/user",
+                                     headers={"Authorization": f"Bearer {token}",
+                                              "Accept": "application/vnd.github+json"})
+            if r.status_code == 200:
+                return True, ""
+            if r.status_code == 401:
+                return False, "GitHub rejected the token (401 Unauthorized)"
+            return False, f"GitHub returned HTTP {r.status_code}"
+        if ctype in ("custom_api", "api"):
+            url = conf.get("base_url") or conf.get("url") or ""
+            if not url:
+                return False, "no base_url supplied for a custom API connector"
+            import httpx
+            headers = {}
+            if conf.get("api_key"):
+                headers["Authorization"] = f"Bearer {conf['api_key']}"
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(url, headers=headers)
+            if r.status_code < 500:
+                return True, ""
+            return False, f"endpoint returned HTTP {r.status_code}"
+        # OAuth/system connectors that need a browser consent flow are not
+        # auto-verifiable from stored credentials.
+        return False, (f"{ctype} requires an OAuth consent flow. This connector type cannot be "
+                       "verified automatically yet, so it is not marked connected.")
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
 settings = get_settings()
 
 UPLOAD_DIR = Path(settings.UPLOAD_DIR)
@@ -354,15 +422,25 @@ async def connect_connector(
         db.commit()
         db.refresh(credential)
     
-    # TODO: Trigger actual connection/auth flow
-    # For now, mark as connected
-    credential.status = ConnectorStatus.CONNECTED
-    credential.last_sync_at = datetime.utcnow()
+    # Verify the credential for real. A connector must never be reported as
+    # CONNECTED just because credentials were stored.
+    verified, verify_error = await _verify_connector(credential, connector)
+    credential.status = ConnectorStatus.CONNECTED if verified else ConnectorStatus.ERROR
+    if verified:
+        credential.last_sync_at = datetime.utcnow()
+    credential.error_message = None if verified else (verify_error or "Verification failed")
     db.commit()
     db.refresh(credential)
-    
+
     await log_audit(db, user_id=current_user.id, action="CONNECTOR_CONNECT",
-                   resource_type="connector", resource_id=str(credential.id), success=True)
+                   resource_type="connector", resource_id=str(credential.id), success=verified)
+
+    if not verified:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{connector.name} could not be verified: {verify_error}. "
+                   "The connector is saved but NOT connected."
+        )
     
     return ConnectorCredentialResponse(
         id=credential.id,
@@ -435,13 +513,19 @@ async def refresh_connector(
     
     credential.status = ConnectorStatus.CONNECTING
     db.commit()
-    
-    # TODO: Implement actual refresh logic per connector type
-    credential.status = ConnectorStatus.CONNECTED
-    credential.last_sync_at = datetime.utcnow()
+
+    # Real refresh: re-verify against the upstream service.
+    verified, refresh_error = await _verify_connector(credential, connector)
+    credential.status = ConnectorStatus.CONNECTED if verified else ConnectorStatus.ERROR
+    credential.error_message = None if verified else refresh_error
+    if verified:
+        credential.last_sync_at = datetime.utcnow()
     db.commit()
-    
-    return {"message": "Connector refreshed"}
+
+    if not verified:
+        raise HTTPException(status_code=400,
+                            detail=f"Refresh failed: {refresh_error}")
+    return {"message": "Connector refreshed", "last_sync_at": str(credential.last_sync_at)}
 
 
 @router.post("/connectors/credentials/{credential_id}/disconnect")

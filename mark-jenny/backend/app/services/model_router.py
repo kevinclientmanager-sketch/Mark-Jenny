@@ -222,6 +222,13 @@ class ModelRouter:
         ModelProvider.XAI: "grok-3-mini",
         ModelProvider.OPENROUTER: "openai/gpt-4o-mini",
         ModelProvider.OLLAMA: "llama3.1:8b",
+        # Free-tier providers
+        ModelProvider.GROQ: "llama-3.3-70b-versatile",
+        ModelProvider.CEREBRAS: "llama-3.3-70b",
+        ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        ModelProvider.FIREWORKS: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        ModelProvider.NVIDIA: "meta/llama-3.3-70b-instruct",
+        ModelProvider.HUGGINGFACE: "meta-llama/Llama-3.3-70B-Instruct",
     }
 
     @staticmethod
@@ -304,22 +311,43 @@ class ModelRouter:
                         if text.strip():
                             return text.strip()
                     continue
-                # OPENAI / CUSTOM / AZURE / OLLAMA via OpenAI-compatible API
-                base = (cfg.base_url or self.PROVIDER_DEFAULT_URLS.get(cfg.provider) or "").rstrip("/")
+                # Everything else via the OpenAI-compatible API. The base URL
+                # comes from the discovered model row when available, so any
+                # model the provider lists can be called - not just the handful
+                # of hardcoded defaults.
+                conf = conf or {}
+                chosen = conf.get("model")
+                api_base = ""
+                if chosen:
+                    try:
+                        mrow = self.db.query(Model).filter(
+                            Model.provider == cfg.provider, Model.model_id == chosen
+                        ).first()
+                        if mrow and isinstance(mrow.config, dict):
+                            api_base = mrow.config.get("api_base") or ""
+                    except Exception:
+                        api_base = ""
+                base = (api_base or conf.get("api_base") or cfg.base_url
+                        or self.PROVIDER_DEFAULT_URLS.get(cfg.provider) or "").rstrip("/")
+                if not base:
+                    from app.services.model_discovery import PROVIDER_SPECS
+                    base = (PROVIDER_SPECS.get(cfg.provider.value, {}).get("api_base") or "").rstrip("/")
                 if not base:
                     continue
                 endpoint = base if base.endswith("/chat/completions") else f"{base}/chat/completions"
-                model = conf.get("model") or self.PROVIDER_DEFAULT_MODELS.get(cfg.provider) or "default"
+                model = chosen or self.PROVIDER_DEFAULT_MODELS.get(cfg.provider) or "default"
                 msgs = []
                 if system:
                     msgs.append({"role": "system", "content": system})
                 msgs.append({"role": "user", "content": prompt[:6000]})
-                async with httpx.AsyncClient(timeout=90) as client:
-                    r = await client.post(
-                        endpoint,
-                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
-                        json={"model": model, "messages": msgs, "temperature": temperature, "max_tokens": max_tokens},
-                    )
+                headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+                body = {"model": model, "messages": msgs, "temperature": temperature, "max_tokens": max_tokens}
+                if cfg.provider == ModelProvider.OPENROUTER:
+                    # OpenRouter accepts optional routing hints and attribution.
+                    headers["HTTP-Referer"] = "https://mark-imti.local"
+                    headers["X-Title"] = "Mark-Imti"
+                async with httpx.AsyncClient(timeout=180) as client:
+                    r = await client.post(endpoint, headers=headers, json=body)
                 if r.status_code == 200:
                     choices = r.json().get("choices", [])
                     content = choices[0].get("message", {}).get("content", "") if choices else ""

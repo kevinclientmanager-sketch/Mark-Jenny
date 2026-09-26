@@ -16,6 +16,15 @@ class ModelProvider(str, enum.Enum):
     MISTRAL = "MISTRAL"
     XAI = "XAI"
     OPENROUTER = "OPENROUTER"
+    # Providers with a genuinely usable free tier, added so the app can be
+    # powered without any paid subscription. Values are stable strings, so
+    # existing rows keep working.
+    GROQ = "GROQ"
+    CEREBRAS = "CEREBRAS"
+    TOGETHER = "TOGETHER"
+    FIREWORKS = "FIREWORKS"
+    NVIDIA = "NVIDIA"
+    HUGGINGFACE = "HUGGINGFACE"
 
 
 class ModelCapability(str, enum.Enum):

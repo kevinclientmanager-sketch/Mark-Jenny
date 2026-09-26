@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
-import { modelsApi, AIModel, ProviderConfig, Agent } from "@/lib/api/models";
+import { modelsApi, AIModel, ProviderConfig, Agent, ProviderCatalogEntry } from "@/lib/api/models";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,13 +15,12 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose,
 } from "@/components/ui/sheet";
 
-const PROVIDERS = [
-  { id: "OPENAI", name: "OpenAI", models: "GPT-4o, GPT-4, GPT-3.5, DALL-E, Whisper", color: "bg-green-100 text-green-700", url: "https://platform.openai.com/api-keys", desc: "Best all-around. Chat, code, vision, image gen." },
-  { id: "ANTHROPIC", name: "Anthropic", models: "Claude 4, Claude 3.5 Sonnet, Claude 3 Haiku", color: "bg-orange-100 text-orange-700", url: "https://console.anthropic.com/", desc: "Best for long documents, analysis, safety." },
-  { id: "GOOGLE", name: "Google AI", models: "Gemini 2.5 Pro, Gemini 2.0 Flash", color: "bg-blue-100 text-blue-700", url: "https://aistudio.google.com/apikey", desc: "Fast & cheap. Great for research and multimodal." },
-  { id: "OLLAMA", name: "Ollama (Local)", models: "Llama 3, Mistral, Phi, Qwen — runs on your PC", color: "bg-purple-100 text-purple-700", url: "https://ollama.ai", desc: "Free, private, runs locally. No API key needed." },
-  { id: "OPENROUTER", name: "OpenRouter", models: "100+ models — GPT, Claude, Llama, Mixtral", color: "bg-cyan-100 text-cyan-700", url: "https://openrouter.ai/keys", desc: "One key for all models. Pay-per-use." },
-  { id: "DEEPSEEK", name: "DeepSeek", models: "DeepSeek V3, DeepSeek R1", color: "bg-red-100 text-red-700", url: "https://platform.deepseek.com/", desc: "Best coding model. Extremely cheap." },
+// Provider list is loaded from the backend catalogue (GET /ai/providers/catalog)
+// so newly supported providers appear without a frontend release.
+const FALLBACK_PROVIDERS = [
+  { id: "GOOGLE", name: "Google AI (Gemini)", models: "", color: "bg-blue-100 text-blue-700", url: "https://aistudio.google.com/apikey", desc: "Free tier. Gemini models with vision." },
+  { id: "OPENROUTER", name: "OpenRouter", models: "", color: "bg-cyan-100 text-cyan-700", url: "https://openrouter.ai/keys", desc: "One key, hundreds of models. ':free' models are free." },
+  { id: "OLLAMA", name: "Ollama (Local)", models: "", color: "bg-purple-100 text-purple-700", url: "https://ollama.ai", desc: "Runs on your machine. No key, no cost." },
 ];
 
 export default function AIPage() {
@@ -39,6 +38,61 @@ export default function AIPage() {
   const [selectedModel, setSelectedModel] = useState<Record<string, string>>({});
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsError, setAgentsError] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<ProviderCatalogEntry[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modelFilter, setModelFilter] = useState("");
+
+  // Build the renderable provider list from the backend catalogue.
+  const PROVIDERS = useMemo(() => {
+    if (!catalog.length) return FALLBACK_PROVIDERS;
+    const palette = [
+      "bg-green-100 text-green-700", "bg-orange-100 text-orange-700",
+      "bg-blue-100 text-blue-700", "bg-cyan-100 text-cyan-700",
+      "bg-purple-100 text-purple-700", "bg-red-100 text-red-700",
+      "bg-indigo-100 text-indigo-700", "bg-teal-100 text-teal-700",
+      "bg-pink-100 text-pink-700", "bg-amber-100 text-amber-700",
+    ];
+    return catalog.map((c, i) => ({
+      id: c.provider,
+      name: c.label,
+      models: "",
+      color: palette[i % palette.length],
+      url: c.signup_url || "#",
+      desc: c.note,
+      free: c.free_tier,
+    }));
+  }, [catalog]);
+
+  const handleRefreshModels = async () => {
+    setRefreshing(true);
+    try {
+      const r = await modelsApi.refreshModels();
+      const m = await modelsApi.listModels();
+      setModels(m);
+      const found = Object.entries(r?.report?.providers || {})
+        .map(([k, v]: any) => `${k}: ${v.found}`).join(", ");
+      toast.add({
+        title: "Model list refreshed",
+        description: `${r?.total_models ?? m.length} models available. ${found || "No providers connected yet."}`,
+        type: "success",
+      });
+    } catch (e: any) {
+      toast.add({ title: "Refresh failed", description: e?.message || "", type: "error" });
+    } finally { setRefreshing(false); }
+  };
+
+  const visibleModels = useMemo(() => {
+    const q = modelFilter.trim().toLowerCase();
+    const list = q
+      ? models.filter((m) => `${m.provider} ${m.model_id} ${m.display_name || ""}`.toLowerCase().includes(q))
+      : models;
+    return [...list].sort((a, b) => {
+      const af = (a.config as any)?.free ? 0 : 1;
+      const bf = (b.config as any)?.free ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return a.provider.localeCompare(b.provider) || a.model_id.localeCompare(b.model_id);
+    });
+  }, [models, modelFilter]);
 
   useEffect(() => {
     (async () => {
@@ -56,6 +110,11 @@ export default function AIPage() {
         setAgents([]);
         setAgentsError(e?.message || "request failed");
       }
+      // Provider catalogue (free-tier flags, signup links) from the backend.
+      try {
+        const c = await modelsApi.providerCatalog();
+        setCatalog(c.providers || []);
+      } catch { setCatalog([]); }
     })();
   }, []);
 
@@ -151,6 +210,7 @@ export default function AIPage() {
                           <div className="flex items-center justify-between">
                             <CardTitle className="text-base flex items-center gap-2">
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${prov.color}`}>{prov.name}</span>
+                              {(prov as any).free && <Badge className="bg-emerald-600 text-[10px]">FREE TIER</Badge>}
                               {configured && <CheckCircle2 className="h-4 w-4 text-green-500" />}
                             </CardTitle>
                             {configured ? (
@@ -266,23 +326,58 @@ export default function AIPage() {
               </TabsContent>
 
               <TabsContent value="models" className="overflow-auto">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <Input
+                    value={modelFilter}
+                    onChange={(e) => setModelFilter(e.target.value)}
+                    placeholder="Search models by name or provider..."
+                    className="max-w-sm"
+                  />
+                  <span className="text-xs text-zinc-500">{visibleModels.length} of {models.length} models</span>
+                  <Button size="sm" variant="outline" className="ml-auto" onClick={handleRefreshModels} disabled={refreshing}>
+                    {refreshing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Zap className="mr-1 h-3 w-3" />}
+                    Refresh from providers
+                  </Button>
+                </div>
                 {loading ? <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {models.map(m => (
-                      <Card key={m.id} className="p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium text-sm">{m.display_name || m.name}</p>
-                          <Badge variant={m.is_local ? "default" : "outline"} className={m.is_local ? "bg-green-100 text-green-700" : ""}>{m.is_local ? "Local" : "Cloud"}</Badge>
+                    {visibleModels.map(m => {
+                      const isFree = !!(m.config as any)?.free;
+                      const apiBase = (m.config as any)?.api_base;
+                      return (
+                      <Card key={`${m.provider}-${m.model_id}`} className="p-3">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <p className="font-medium text-sm truncate">{m.display_name || m.name}</p>
+                          <div className="flex gap-1 shrink-0">
+                            {isFree && <Badge className="bg-emerald-600 text-[10px]">FREE</Badge>}
+                            <Badge variant={m.is_local ? "default" : "outline"} className="text-[10px]">{m.is_local ? "Local" : "Cloud"}</Badge>
+                          </div>
                         </div>
-                        <p className="text-xs text-zinc-500">{m.provider} • {m.model_id}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">{m.capabilities?.slice(0, 3).map(c => <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>)}</div>
+                        <p className="text-xs text-zinc-500 break-all">{m.provider} • {m.model_id}</p>
+                        {apiBase && <p className="text-[10px] text-zinc-400 break-all mt-0.5">via {apiBase}</p>}
+                        <div className="flex flex-wrap gap-1 mt-1">{m.capabilities?.slice(0, 4).map(c => <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>)}</div>
                         <div className="flex gap-3 mt-1 text-[10px] text-zinc-400">
-                          <span className="flex items-center gap-0.5"><DollarSign className="h-2.5 w-2.5" />{m.cost_per_1k_input}¢/1k</span>
-                          <span>{m.context_window?.toLocaleString()} ctx</span>
+                          <span className="flex items-center gap-0.5"><DollarSign className="h-2.5 w-2.5" />{m.cost_per_1k_input ?? 0}¢/1k</span>
+                          <span>{m.context_window ? `${Math.round(m.context_window / 1000)}k ctx` : "ctx n/a"}</span>
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                            onClick={() => handleSelectModel(m.provider as any, m.model_id)}>
+                            Use for {m.provider}
+                          </Button>
                         </div>
                       </Card>
-                    ))}
-                    {models.length === 0 && <p className="text-zinc-500 col-span-3 text-center p-8">Add a provider API key above to see available models.</p>}
+                    );
+                    })}
+                    {visibleModels.length === 0 && (
+                      <div className="col-span-3 text-center p-8">
+                        <p className="text-zinc-500">
+                          {models.length === 0
+                            ? "No models yet. Connect a provider above (free options exist) or press Refresh."
+                            : "No model matches that search."}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </TabsContent>

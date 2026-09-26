@@ -29,6 +29,16 @@ export interface ProviderConfig {
   created_at: string;
 }
 
+export interface ProviderCatalogEntry {
+  provider: string;
+  label: string;
+  free_tier: boolean;
+  api_base: string | null;
+  signup_url: string;
+  note: string;
+  discovery: boolean;
+}
+
 export interface Agent {
   id: number;
   name: string;
@@ -55,6 +65,9 @@ export const modelsApi = {
   updateModel: async (id:number, data:any): Promise<AIModel> => api.patch<AIModel>(`/ai/models/${id}`, data),
   deleteModel: async (id:number): Promise<any> => api.delete(`/ai/models/${id}`),
   listProviders: async (): Promise<ProviderConfig[]> => api.get<ProviderConfig[]>('/ai/providers'),
+  providerCatalog: async (): Promise<{ providers: ProviderCatalogEntry[]; note: string }> => api.get('/ai/providers/catalog'),
+  refreshModels: async (provider?: string): Promise<{ report: any; total_models: number }> =>
+    api.get(`/ai/models/refresh${provider ? `?provider=${provider}` : ''}`),
   upsertProvider: async (data: { provider: ModelProvider; api_key?: string; base_url?: string; config?: any; is_default?: boolean }): Promise<ProviderConfig> => api.post<ProviderConfig>('/ai/providers', data),
   testProvider: async (data: { provider: ModelProvider; api_key?: string; base_url?: string; model?: string }): Promise<{ ok: boolean; provider: string; model?: string; status_code?: number; detail: string }> => api.post('/ai/providers/test', data),
   selectModel: async (provider: ModelProvider, model: string): Promise<ProviderConfig> => api.post<ProviderConfig>('/ai/providers', { provider, config: { model }, is_default: true }),

@@ -136,6 +136,7 @@ class ProviderConfigResponse(BaseModel):
     has_key: bool
     is_default: bool
     created_at: datetime
+    discovery: Optional[Dict[str, Any]] = None
     class Config:
         from_attributes = True
 
@@ -223,7 +224,40 @@ async def upsert_provider(data: ProviderConfigCreate, current_user: User = Depen
         cfg = ModelProviderConfig(user_id=current_user.id, provider=data.provider, api_key_encrypted=enc, base_url=data.base_url, config=data.config, is_default=data.is_default)
         db.add(cfg); db.commit(); db.refresh(cfg)
     await log_audit(db, user_id=current_user.id, action="SETTINGS_CHANGE", resource_type="provider", resource_id=str(cfg.id), success=True)
-    return ProviderConfigResponse(id=cfg.id, provider=cfg.provider.value, base_url=cfg.base_url, has_key=_has_key(cfg.api_key_encrypted), is_default=cfg.is_default, created_at=cfg.created_at)
+
+    # A saved key is useless to the user until the model list is populated, so
+    # pull the provider's real catalogue immediately.
+    discovery = None
+    if enc:
+        try:
+            from app.services.model_sync import discover_for_user
+            discovery = await discover_for_user(db, current_user, provider=data.provider.value)
+        except Exception as exc:
+            discovery = {"synced": 0, "errors": {data.provider.value: str(exc)}}
+
+    return ProviderConfigResponse(id=cfg.id, provider=cfg.provider.value, base_url=cfg.base_url, has_key=_has_key(cfg.api_key_encrypted), is_default=cfg.is_default, created_at=cfg.created_at, discovery=discovery)
+
+@router.get("/providers/catalog")
+async def provider_catalog(current_user: User = Depends(get_current_user)):
+    """Every provider Mark-Imti can connect to, with free-tier flags.
+
+    Free-tier providers are listed first so a user with no budget can still
+    get real model output.
+    """
+    from app.services.model_discovery import provider_catalog as _catalog
+    rows = _catalog()
+    rows.sort(key=lambda r: (not r["free_tier"], r["label"]))
+    return {"providers": rows,
+            "note": "Providers marked FREE TIER do not require a paid subscription."}
+
+
+@router.get("/models/refresh")
+async def refresh_models(provider: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Re-query every connected provider (or one) for its live model list."""
+    from app.services.model_sync import discover_for_user
+    report = await discover_for_user(db, current_user, provider=provider)
+    return {"report": report, "total_models": db.query(Model).filter(Model.is_active.is_(True)).count()}
+
 
 @router.delete("/providers/{provider}")
 async def delete_provider(provider: ModelProvider, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

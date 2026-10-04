@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Sidebar, SidebarChatData } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
@@ -18,8 +18,7 @@ function loadPinned(): number[] {
 
 export default function ProjectDetailPage() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const id = Number(params?.id);
+  const [id, setId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +32,12 @@ export default function ProjectDetailPage() {
   const [mode, setMode] = useState<"chat" | "work" | "browse">(() => {
     try { return (localStorage.getItem("mark.sidebarMode") as any) || "chat"; } catch { return "chat"; }
   });
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("projectId");
+    const parsed = raw ? Number(raw) : NaN;
+    setId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+  }, []);
 
   const fetchProject = useCallback(async () => {
     if (!id || Number.isNaN(id)) { setLoading(false); return; }
@@ -54,10 +59,11 @@ export default function ProjectDetailPage() {
     } catch {} finally { setLoadingChats(false); }
   }, [activeChatId]);
 
-  useEffect(() => { fetchProject(); fetchProjects(); fetchChats(); }, [fetchProject, fetchProjects, fetchChats]);
+  useEffect(() => { if (id) { fetchProject(); fetchProjects(); fetchChats(); } }, [id, fetchProject, fetchProjects, fetchChats]);
   useEffect(() => { try { localStorage.setItem("mark.sidebarMode", mode); } catch {} }, [mode]);
 
   const handleNewChat = useCallback(async () => {
+    if (!id) return;
     try {
       const c = await chatApi.create({ project_id: id });
       setChats((prev) => [c, ...prev]);
@@ -70,11 +76,12 @@ export default function ProjectDetailPage() {
     try {
       const p = await projectsApi.create({ name: "New project" });
       fetchProjects();
-      router.push(`/projects/${p.id}`);
+      router.push(`/projects/view?projectId=${p.id}`);
     } catch { toast.add({ title: "Couldn't create project", type: "error" }); }
   }, [fetchProjects, router]);
 
   const handleDuplicate = async () => {
+    if (!id) return;
     try {
       const dup = await projectsApi.duplicate(id);
       toast.add({ title: "Project duplicated", description: dup.name, type: "success" });
@@ -83,6 +90,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (!id) return;
     try {
       await projectsApi.delete(id);
       toast.add({ title: "Project deleted", type: "success" });
@@ -110,8 +118,8 @@ export default function ProjectDetailPage() {
       chatApi.delete(c.id).then(() => setChats((prev) => prev.filter((ch) => ch.id !== c.id)));
     },
     projects,
-    projectId: id,
-    onSelectProject: (pid) => { if (pid) router.push(`/projects/${pid}`); },
+    projectId: id || undefined,
+    onSelectProject: (pid) => { if (pid) router.push(`/projects/view?projectId=${pid}`); },
     onNewProject: handleNewProject,
     browseSessions: [],
     onRenameProject: (pid, name) => setProjects((prev) => prev.map((p) => p.id === pid ? { ...p, name } : p)),
@@ -164,7 +172,7 @@ export default function ProjectDetailPage() {
                   </Button>
                 </div>
               ) : (
-                <ProjectWorkspace projectId={id} />
+                id ? <ProjectWorkspace projectId={id} /> : null
               )}
             </div>
           </main>

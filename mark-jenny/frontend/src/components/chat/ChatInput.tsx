@@ -509,7 +509,7 @@ export function ChatInput({
   // ============================================================
 
   return (
-    <div className="shrink-0 border-t border-zinc-200/70 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="shrink-0 border-t border-zinc-200/70 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mx-auto w-full max-w-3xl">
         {voiceActive ? (
           <VoiceOrb
@@ -522,21 +522,19 @@ export function ChatInput({
           />
         ) : (
         <>
-        <div className="mb-2 flex flex-col items-center gap-1.5">
-          {chips && chips.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {chips.map((c) => (
-                <button
-                  key={c.label}
-                  onClick={() => onSend(c.prompt)}
-                  className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <c.icon className="h-3 w-3 text-emerald-600" /> {c.label}
-                </button>
-              ))}
-            </div>
-          )}
+        {chips && chips.length > 0 && (
+        <div className="mb-2 flex flex-wrap justify-center gap-1.5">
+          {chips.map((c) => (
+            <button
+              key={c.label}
+              onClick={() => onSend(c.prompt)}
+              className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <c.icon className="h-3 w-3 text-emerald-600" /> {c.label}
+            </button>
+          ))}
         </div>
+        )}
         <div className="rounded-[26px] border bg-white dark:bg-zinc-900 shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring/40">
           {inputMode === "voice" ? (
             <div className="flex min-h-[64px] items-center gap-3 px-3 py-2">
@@ -623,13 +621,6 @@ export function ChatInput({
             </div>
           )}
         </div>
-        <p className="mt-2 text-center text-[11px] text-zinc-400">
-          {mode === "work"
-            ? "Work mode — Mark plans, writes code, runs tools, and reports back live."
-            : mode === "browse"
-              ? "Browse mode — Mark opens the browser, searches, reads pages, and brings back answers."
-              : "Wave icon = voice conversation. Talk naturally to Mark or Imti."}
-        </p>
         </>
         )}
       </div>

@@ -139,6 +139,65 @@ export interface SidebarChatData {
   onDeleteProject?: (id: number) => void;
 }
 
+type ProfileMenuUser = ReturnType<typeof useAuth>["user"];
+
+function ProfileMenu({ user, initials, displayName, onSettings, onLogout }: {
+  user: ProfileMenuUser;
+  initials: string;
+  displayName: string;
+  onSettings: () => void;
+  onLogout: () => void;
+}) {
+  const router = useRouter();
+  const avatar = user?.avatar_url ? (
+    <AvatarImage src={user.avatar_url} alt={displayName} />
+  ) : (
+    <AvatarFallback className="bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
+      {initials}
+    </AvatarFallback>
+  );
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            className="rounded-lg p-1 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            title="Profile"
+          />
+        }
+      >
+        <Avatar className="h-7 w-7 text-xs">{avatar}</Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-60">
+        <button
+          onClick={() => router.push("/security")}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        >
+          <Avatar className="h-9 w-9 shrink-0 text-xs">{avatar}</Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{displayName}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user?.email}</span>
+          </span>
+        </button>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onSettings}>
+          <Settings />
+          Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/")}>
+          <LayoutDashboard />
+          Dashboard
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onLogout} className="text-red-600 focus:text-red-600">
+          <LogOut />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onToggle: () => void; chatData?: SidebarChatData }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -379,6 +438,13 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
+            <ProfileMenu
+              user={user}
+              initials={initials}
+              displayName={displayName()}
+              onSettings={() => setSettingsOpen(true)}
+              onLogout={() => logout()}
+            />
           </>
         ) : (
           <button
@@ -591,7 +657,9 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
       {/* Bottom bar: frozen primary action + profile. Sits outside the scrolling
           <nav> so it never moves. Padding, border and background match the chat
           composer exactly so the two read as one continuous bottom strip. */}
-      <div className="shrink-0 border-t border-zinc-200/70 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="shrink-0 border-t border-zinc-200/70 bg-white px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* Single compact action row. The profile lives in the sidebar header now, so
+          this bar is exactly one button tall (40px) and matches the reference. */}
         {chatData && (
           <button
             onClick={() => {
@@ -600,20 +668,16 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
             }}
             title={
               chatData.mode === "work"
-                ? "New project"
+                ? "+ New project"
                 : chatData.mode === "browse"
-                  ? "New session"
-                  : "New task"
+                  ? "+ New session"
+                  : "+ New task"
             }
             className={cn(
-              "mb-2 flex h-9 w-full items-center rounded-lg transition-colors",
-              "bg-zinc-900/5 text-zinc-900 hover:bg-zinc-900/10",
-              "dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15",
-              chatData.mode === "work"
-                ? "justify-center px-2.5"
-                : isOpen
-                  ? "gap-2 px-2.5"
-                  : "justify-center px-2"
+              "flex h-8 w-full items-center rounded-lg border border-zinc-300 bg-white transition-colors",
+              "text-zinc-900 hover:bg-zinc-50",
+              "dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900",
+              isOpen ? "gap-2 px-3" : "justify-center px-2"
             )}
           >
             {chatData.mode === "work" ? (
@@ -624,7 +688,7 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
               <Plus className="h-4 w-4 shrink-0" />
             )}
             {isOpen && (
-              <span className="text-sm font-medium">
+              <span className="truncate text-sm font-medium">
                 {chatData.mode === "work"
                   ? "New project"
                   : chatData.mode === "browse"
@@ -634,72 +698,6 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
             )}
           </button>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                className={cn(
-                  "group flex w-full items-center rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                  isOpen ? "justify-start gap-2 px-3 py-2" : "justify-center p-2"
-                )}
-                title="Profile"
-              />
-            }
-          >
-            <Avatar className="h-7 w-7 text-xs">
-              {user?.avatar_url ? (
-                <AvatarImage src={user.avatar_url} alt={displayName()} />
-              ) : (
-                <AvatarFallback className="bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
-                  {initials}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            {isOpen && (
-              <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
-                {displayName()}
-              </span>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" sideOffset={6} className="w-60">
-            <button
-              onClick={() => router.push("/security")}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              title="Open account options"
-            >
-              <Avatar className="h-9 w-9 shrink-0 text-xs">
-                {user?.avatar_url ? (
-                  <AvatarImage src={user.avatar_url} alt={displayName()} />
-                ) : (
-                  <AvatarFallback className="bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
-                    {initials}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{displayName()}</span>
-                <span className="block truncate text-xs text-muted-foreground">{user?.email}</span>
-              </span>
-            </button>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-              <Settings />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/")}>
-              <LayoutDashboard />
-              Dashboard
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => logout()}
-              className="text-red-600 focus:text-red-600"
-            >
-              <LogOut />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <CommandSearch />

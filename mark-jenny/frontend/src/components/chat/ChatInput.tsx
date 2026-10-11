@@ -509,7 +509,7 @@ export function ChatInput({
   // ============================================================
 
   return (
-    <div className="border-t bg-white dark:bg-zinc-900 px-3 py-3">
+    <div className="shrink-0 border-t border-zinc-200/70 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mx-auto w-full max-w-3xl">
         {voiceActive ? (
           <VoiceOrb

@@ -493,16 +493,11 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
         )}
 
         {/* Below content — changes per agent toggle */}
+        {/* The primary "new" action moved out of this scrolling <nav> into the
+            frozen bottom bar below, so it stays put while the list scrolls. */}
         {chatData && isOpen && (
           chatData.mode === "chat" ? (
             <>
-              <button
-                onClick={() => chatData.onNewChat()}
-                className="mb-2 flex h-9 w-full items-center gap-2 rounded-lg bg-zinc-900/5 px-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-900/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15"
-              >
-                <Plus className="h-4 w-4" />
-                New chat
-              </button>
               {chatData.loadingChats ? (
                 <div className="flex justify-center p-3"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>
               ) : chatData.chats.length === 0 ? (
@@ -517,13 +512,6 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
             </>
           ) : chatData.mode === "work" ? (
             <>
-              <button
-                onClick={() => chatData.onNewProject()}
-                className="mb-2 flex h-9 w-full items-center gap-2 rounded-lg bg-zinc-900/5 px-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-900/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15"
-              >
-                <FilePlus2 className="h-4 w-4" />
-                New project
-              </button>
               {chatData.projects.length === 0 ? (
                 <p className="px-3 py-1 text-xs text-zinc-400">No projects yet.</p>
               ) : (
@@ -600,8 +588,52 @@ export function Sidebar({ isOpen, onToggle, chatData }: { isOpen: boolean; onTog
         )}
       </nav>
 
-      {/* Bottom: Profile icon only */}
-      <div className="shrink-0 border-t border-zinc-200/70 dark:border-zinc-800 px-2 py-2">
+      {/* Bottom bar: frozen primary action + profile. Sits outside the scrolling
+          <nav> so it never moves. Padding, border and background match the chat
+          composer exactly so the two read as one continuous bottom strip. */}
+      <div className="shrink-0 border-t border-zinc-200/70 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        {chatData && (
+          <button
+            onClick={() => {
+              if (chatData.mode === "work") chatData.onNewProject();
+              else chatData.onNewChat();
+            }}
+            title={
+              chatData.mode === "work"
+                ? "New project"
+                : chatData.mode === "browse"
+                  ? "New session"
+                  : "New task"
+            }
+            className={cn(
+              "mb-2 flex h-9 w-full items-center rounded-lg transition-colors",
+              "bg-zinc-900/5 text-zinc-900 hover:bg-zinc-900/10",
+              "dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15",
+              chatData.mode === "work"
+                ? "justify-center px-2.5"
+                : isOpen
+                  ? "gap-2 px-2.5"
+                  : "justify-center px-2"
+            )}
+          >
+            {chatData.mode === "work" ? (
+              <FilePlus2 className="h-4 w-4 shrink-0" />
+            ) : chatData.mode === "browse" ? (
+              <Globe className="h-4 w-4 shrink-0" />
+            ) : (
+              <Plus className="h-4 w-4 shrink-0" />
+            )}
+            {isOpen && (
+              <span className="text-sm font-medium">
+                {chatData.mode === "work"
+                  ? "New project"
+                  : chatData.mode === "browse"
+                    ? "New session"
+                    : "New task"}
+              </span>
+            )}
+          </button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
